@@ -133,6 +133,7 @@ def chat():
     global pending_plan
     data = request.get_json() or {}
     text = data.get("message", "")
+    mode = data.get("mode", "chat")
     approve = data.get("approve", False)
 
     if approve and pending_plan:
@@ -144,7 +145,11 @@ def chat():
         code, out, err = run_command(plan["command"])
         return jsonify({"returncode": code, "stdout": out, "stderr": err})
 
-    # create new plan
+    if mode == "chat":
+        plan = create_plan(text)
+        return jsonify({"response": f"Proposed plan: {plan}"})
+
+    # mode == execute: create plan and ask for approval
     plan = create_plan(text)
     pending_plan = plan
     return jsonify({"plan": plan, "message": "Send {'approve': true} to execute"})

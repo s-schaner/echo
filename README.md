@@ -17,17 +17,20 @@ python chat_interface.py
 ```
 
 Open `http://localhost:5000/` in your browser to use the web chat UI
-with a colorful Aurora motif.
+with a colorful Aurora motif. The input box includes a **mode selector**
+so you can choose between simple chat and command execution.
 
 Send a chat message with:
 
 ```bash
 curl -X POST http://localhost:5000/chat -H 'Content-Type: application/json' \
-    -d '{"message": "date"}'
+    -d '{"message": "date", "mode": "execute"}'
 ```
 
-The server will respond with the planned command. Send another request
-with `{"approve": true}` to execute the plan.
+The server will respond with the planned command. Set `mode` to `execute`
+in the JSON body (or select **Execute** in the web UI) to trigger the
+approval workflow. Send another request with `{"approve": true}` to run
+the command.
 
 ## Installation
 
