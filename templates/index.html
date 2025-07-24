@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuroraShell Chat</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="chat-container">
+        <h1>AuroraShell</h1>
+        <a href="/system" style="color:#fff">System Status</a>
+        <span class="settings-link" onclick="toggleSettings()">Settings</span>
+        <div id="settings" class="settings-panel">
+            <label>LM Studio URL:<br><input id="lmstudio_url" /></label>
+            <label>LM Studio Token:<br><input id="lmstudio_token" /></label>
+            <label>AnythingLLM URL:<br><input id="anythingllm_url" /></label>
+            <label>AnythingLLM Token:<br><input id="anythingllm_token" /></label>
+            <label>N8N URL:<br><input id="n8n_url" /></label>
+            <label>N8N Token:<br><input id="n8n_token" /></label>
+            <button onclick="saveSettings()">Save</button>
+        </div>
+        <div id="toast" class="toast" style="display:none"></div>
+        <div id="chat-log" class="chat-log"></div>
+        <div class="input-area">
+            <input type="text" id="chat-input" placeholder="Type your command..." />
+            <button onclick="sendMessage()">Send</button>
+        </div>
+</div>
+<script>
+const toastEl = document.getElementById('toast');
+const settingsEl = document.getElementById('settings');
+
+async function loadSettings(){
+    const res = await fetch('/settings');
+    const data = await res.json();
+    for(const [k,v] of Object.entries(data)){
+        const el = document.getElementById(k);
+        if(el) el.value = v || '';
+    }
+}
+
+function toggleSettings(){
+    if(settingsEl.style.display==='block'){
+        settingsEl.style.display='none';
+    } else {
+        settingsEl.style.display='block';
+        loadSettings();
+    }
+}
+
+async function saveSettings(){
+    const payload = {
+        lmstudio_url: document.getElementById('lmstudio_url').value,
+        lmstudio_token: document.getElementById('lmstudio_token').value,
+        anythingllm_url: document.getElementById('anythingllm_url').value,
+        anythingllm_token: document.getElementById('anythingllm_token').value,
+        n8n_url: document.getElementById('n8n_url').value,
+        n8n_token: document.getElementById('n8n_token').value,
+    };
+    await fetch('/settings', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+    });
+    showToast('Settings saved');
+}
+
+function showToast(msg){
+    toastEl.textContent = msg;
+    toastEl.style.display='block';
+    setTimeout(()=>{toastEl.style.display='none';},3000);
+}
+
+async function pollEvents(){
+    const res = await fetch('/events');
+    const events = await res.json();
+    events.forEach(showToast);
+}
+setInterval(pollEvents,10000);
+
+async function sendMessage() {
+    const input = document.getElementById('chat-input');
+    const text = input.value;
+    if (!text) return;
+    const log = document.getElementById('chat-log');
+    log.innerHTML += `<div class='user-msg'>${text}</div>`;
+    input.value = '';
+    const res = await fetch('/chat', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({message: text})
+    });
+    const data = await res.json();
+    if (data.plan) {
+        log.innerHTML += `<div class='bot-msg'>Plan: ${JSON.stringify(data.plan)}</div>`;
+        const approve = confirm('Execute this plan?');
+        if (approve) {
+            const res2 = await fetch('/chat', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({approve: true})
+            });
+            const result = await res2.json();
+            log.innerHTML += `<div class='bot-msg'>Result: ${JSON.stringify(result)}</div>`;
+        }
+    } else if (data.returncode !== undefined) {
+        log.innerHTML += `<div class='bot-msg'>Result: ${JSON.stringify(data)}</div>`;
+    } else if (data.error) {
+        log.innerHTML += `<div class='bot-msg error'>Error: ${data.error}</div>`;
+    }
+    log.scrollTop = log.scrollHeight;
+}
+</script>
+</body>
+</html>
