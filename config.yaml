@@ -9,3 +9,4 @@ allowlist:
   - sudo systemctl restart NetworkManager
 n8n_url: "http://localhost:5678"
 anythingllm_url: "http://localhost:3001"
+lmstudio_url: "http://localhost:1234"

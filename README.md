@@ -58,9 +58,10 @@ with `{"approve": true}` to execute the plan.
 
    ```yaml
    port: 5000
-   n8n_url: "http://127.0.0.1:5678"       # Update with your N8N URL
-   anythingllm_url: "http://127.0.0.1:3001"  # Update with your AnythingLLM URL
-   ```
+  n8n_url: "http://127.0.0.1:5678"       # Update with your N8N URL
+  anythingllm_url: "http://127.0.0.1:3001"  # Update with your AnythingLLM URL
+  lmstudio_url: "http://127.0.0.1:1234"   # Update with your LM Studio URL
+  ```
 
    If your N8N or AnythingLLM instances require authentication tokens,
    make sure to set those in the configuration as well.
@@ -75,3 +76,14 @@ with `{"approve": true}` to execute the plan.
 
    Open `http://<your-ip>:<port>/` in your browser (replace the default
    values with those you configured) to begin chatting with the agent.
+
+   Visit `/system` to view the status dashboard. Services that are
+   unavailable will show a red light while AuroraShell continues running
+   and will automatically retry the connection every 10 seconds.
+
+## Monitoring and Resilience
+
+AuroraShell keeps running even if its supporting services are down. The
+server polls LM Studio, AnythingLLM and N8N every 10 seconds. Connection
+loss or restoration events appear as toast notifications in the UI. Use
+the System Status page to check current connectivity states at any time.

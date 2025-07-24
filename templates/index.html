@@ -9,13 +9,30 @@
 <body>
     <div class="chat-container">
         <h1>AuroraShell</h1>
+        <a href="/system" style="color:#fff">System Status</a>
+        <div id="toast" class="toast" style="display:none"></div>
         <div id="chat-log" class="chat-log"></div>
         <div class="input-area">
             <input type="text" id="chat-input" placeholder="Type your command..." />
             <button onclick="sendMessage()">Send</button>
         </div>
-    </div>
+</div>
 <script>
+const toastEl = document.getElementById('toast');
+
+function showToast(msg){
+    toastEl.textContent = msg;
+    toastEl.style.display='block';
+    setTimeout(()=>{toastEl.style.display='none';},3000);
+}
+
+async function pollEvents(){
+    const res = await fetch('/events');
+    const events = await res.json();
+    events.forEach(showToast);
+}
+setInterval(pollEvents,10000);
+
 async function sendMessage() {
     const input = document.getElementById('chat-input');
     const text = input.value;

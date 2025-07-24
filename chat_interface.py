@@ -1,5 +1,8 @@
 from flask import Flask, request, jsonify, render_template
 import logging
+import threading
+import time
+import requests
 import yaml
 from planner import create_plan
 from validator import is_allowed
@@ -17,6 +20,47 @@ app = Flask(__name__, static_folder="static", template_folder="templates")
 with open("config.yaml", "r") as f:
     CONFIG = yaml.safe_load(f)
 
+STATUS = {
+    "lmstudio": False,
+    "anythingllm": False,
+    "n8n": False,
+}
+
+EVENTS: list[str] = []
+
+
+def ping_service(name: str, url: str) -> bool:
+    """Return True if service responds, False otherwise."""
+    try:
+        requests.get(url, timeout=3)
+        return True
+    except Exception:
+        return False
+
+
+def check_services() -> None:
+    """Background thread to poll service availability."""
+    while True:
+        for name, key in {
+            "lmstudio": "lmstudio_url",
+            "anythingllm": "anythingllm_url",
+            "n8n": "n8n_url",
+        }.items():
+            url = CONFIG.get(key)
+            if not url:
+                continue
+            available = ping_service(name, url)
+            if STATUS.get(name) != available:
+                STATUS[name] = available
+                msg = (
+                    f"connection to {name} restored"
+                    if available
+                    else f"connection to {name} down"
+                )
+                logger.info(msg)
+                EVENTS.append(msg)
+        time.sleep(10)
+
 pending_plan = None
 
 
@@ -24,6 +68,27 @@ pending_plan = None
 def index():
     """Serve chat UI with motif skin."""
     return render_template("index.html")
+
+
+@app.route("/system")
+def system_page():
+    """Serve system status page."""
+    return render_template("status.html")
+
+
+@app.route("/status")
+def status():
+    """Return JSON status of external services."""
+    return jsonify(STATUS)
+
+
+@app.route("/events")
+def events():
+    """Return and clear recent event messages."""
+    global EVENTS
+    msgs = EVENTS.copy()
+    EVENTS.clear()
+    return jsonify(msgs)
 
 
 @app.route("/chat", methods=["POST"])
@@ -50,6 +115,9 @@ def chat():
 
 def main():
     port = CONFIG.get("port", 5000)
+    # start background service checker
+    thread = threading.Thread(target=check_services, daemon=True)
+    thread.start()
     app.run(host="0.0.0.0", port=port)
 
 
