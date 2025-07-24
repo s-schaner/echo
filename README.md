@@ -53,9 +53,10 @@ with `{"approve": true}` to execute the plan.
 
 4. **Configure AuroraShell**
 
-   You can edit `config.yaml` directly or open the **Settings** menu in the
-   web UI to update server addresses and API tokens at runtime. Example
-   configuration values:
+   Edit `config.yaml` and replace the default server addresses, ports, and
+   any API tokens required by your local services. You can also open the
+   **Settings** menu in the web UI to change these values while AuroraShell
+   is running. Example configuration values:
 
    ```yaml
   port: 5000
