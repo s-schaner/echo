@@ -16,6 +16,9 @@ To start the server:
 python chat_interface.py
 ```
 
+Open `http://localhost:5000/` in your browser to use the web chat UI
+with a colorful Aurora motif.
+
 Send a chat message with:
 
 ```bash

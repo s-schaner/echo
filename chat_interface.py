@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 import logging
 import yaml
 from planner import create_plan
@@ -12,12 +12,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="static", template_folder="templates")
 
 with open("config.yaml", "r") as f:
     CONFIG = yaml.safe_load(f)
 
 pending_plan = None
+
+
+@app.route("/")
+def index():
+    """Serve chat UI with motif skin."""
+    return render_template("index.html")
 
 
 @app.route("/chat", methods=["POST"])
