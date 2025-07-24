@@ -1,0 +1,11 @@
+port: 5000
+allowlist:
+  - echo
+  - ls
+  - pwd
+  - whoami
+  - date
+  - uptime
+  - sudo systemctl restart NetworkManager
+n8n_url: "http://localhost:5678"
+anythingllm_url: "http://localhost:3001"
