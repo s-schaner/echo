@@ -8,5 +8,8 @@ allowlist:
   - uptime
   - sudo systemctl restart NetworkManager
 n8n_url: "http://localhost:5678"
+n8n_token: ""
 anythingllm_url: "http://localhost:3001"
+anythingllm_token: ""
 lmstudio_url: "http://localhost:1234"
+lmstudio_token: ""

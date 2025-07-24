@@ -17,8 +17,20 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
 
-with open("config.yaml", "r") as f:
-    CONFIG = yaml.safe_load(f)
+CONFIG_FILE = "config.yaml"
+
+
+def load_config() -> dict:
+    with open(CONFIG_FILE, "r") as f:
+        return yaml.safe_load(f)
+
+
+def save_config(cfg: dict) -> None:
+    with open(CONFIG_FILE, "w") as f:
+        yaml.safe_dump(cfg, f)
+
+
+CONFIG = load_config()
 
 STATUS = {
     "lmstudio": False,
@@ -89,6 +101,31 @@ def events():
     msgs = EVENTS.copy()
     EVENTS.clear()
     return jsonify(msgs)
+
+
+@app.route("/settings", methods=["GET", "POST"])
+def settings():
+    """Get or update server configuration."""
+    global CONFIG
+    if request.method == "POST":
+        data = request.get_json() or {}
+        CONFIG.update({
+            "lmstudio_url": data.get("lmstudio_url", CONFIG.get("lmstudio_url")),
+            "anythingllm_url": data.get("anythingllm_url", CONFIG.get("anythingllm_url")),
+            "n8n_url": data.get("n8n_url", CONFIG.get("n8n_url")),
+            "lmstudio_token": data.get("lmstudio_token", CONFIG.get("lmstudio_token")),
+            "anythingllm_token": data.get("anythingllm_token", CONFIG.get("anythingllm_token")),
+            "n8n_token": data.get("n8n_token", CONFIG.get("n8n_token")),
+        })
+        save_config(CONFIG)
+    return jsonify({
+        "lmstudio_url": CONFIG.get("lmstudio_url"),
+        "anythingllm_url": CONFIG.get("anythingllm_url"),
+        "n8n_url": CONFIG.get("n8n_url"),
+        "lmstudio_token": CONFIG.get("lmstudio_token"),
+        "anythingllm_token": CONFIG.get("anythingllm_token"),
+        "n8n_token": CONFIG.get("n8n_token"),
+    })
 
 
 @app.route("/chat", methods=["POST"])

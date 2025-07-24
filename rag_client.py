@@ -5,17 +5,20 @@ import yaml
 CONFIG_FILE = "config.yaml"
 logger = logging.getLogger(__name__)
 
-with open(CONFIG_FILE, "r") as f:
-    CONFIG = yaml.safe_load(f)
-
-BASE_URL = CONFIG.get("anythingllm_url", "http://localhost:3001")
+def load_config() -> dict:
+    with open(CONFIG_FILE, "r") as f:
+        return yaml.safe_load(f)
 
 
 def query_memory(text: str) -> dict:
     """Query AnythingLLM server for context or documents."""
-    url = f"{BASE_URL}/query"
+    cfg = load_config()
+    base_url = cfg.get("anythingllm_url", "http://localhost:3001")
+    token = cfg.get("anythingllm_token")
+    url = f"{base_url}/query"
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
     try:
-        resp = requests.post(url, json={"query": text}, timeout=10)
+        resp = requests.post(url, json={"query": text}, headers=headers, timeout=10)
         resp.raise_for_status()
         logger.info("Queried AnythingLLM: %s", text)
         return resp.json()

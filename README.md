@@ -53,18 +53,22 @@ with `{"approve": true}` to execute the plan.
 
 4. **Configure AuroraShell**
 
-   Edit `config.yaml` and replace the default server addresses, ports,
-   and any API tokens required by your local services. Example:
+   You can edit `config.yaml` directly or open the **Settings** menu in the
+   web UI to update server addresses and API tokens at runtime. Example
+   configuration values:
 
    ```yaml
-   port: 5000
+  port: 5000
   n8n_url: "http://127.0.0.1:5678"       # Update with your N8N URL
+  n8n_token: ""
   anythingllm_url: "http://127.0.0.1:3001"  # Update with your AnythingLLM URL
+  anythingllm_token: ""
   lmstudio_url: "http://127.0.0.1:1234"   # Update with your LM Studio URL
+  lmstudio_token: ""
   ```
 
-   If your N8N or AnythingLLM instances require authentication tokens,
-   make sure to set those in the configuration as well.
+   If your services require authentication tokens, fill in the appropriate
+   fields in `config.yaml` or via the Settings menu.
 
 5. **Run the server**
 
@@ -77,9 +81,10 @@ with `{"approve": true}` to execute the plan.
    Open `http://<your-ip>:<port>/` in your browser (replace the default
    values with those you configured) to begin chatting with the agent.
 
-   Visit `/system` to view the status dashboard. Services that are
-   unavailable will show a red light while AuroraShell continues running
-   and will automatically retry the connection every 10 seconds.
+   Visit `/system` to view the status dashboard. Use the **Settings** link
+   in the top bar to adjust endpoints while the server is running.
+   Services that are unavailable will show a red light and the server will
+   automatically retry the connection every 10 seconds.
 
 ## Monitoring and Resilience
 
