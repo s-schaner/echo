@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>System Status</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .status-grid { display:flex; flex-direction:column; gap:8px; }
+        .status-item { display:flex; align-items:center; gap:8px; }
+        .dot { width:12px; height:12px; border-radius:50%; background:red; }
+        .dot.green { background: #66bb6a; }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <h1>System Status</h1>
+        <div id="status" class="status-grid"></div>
+        <a href="/">Back</a>
+    </div>
+<script>
+async function refreshStatus(){
+    const res=await fetch('/status');
+    const data=await res.json();
+    const container=document.getElementById('status');
+    container.innerHTML='';
+    for(const [name, ok] of Object.entries(data)){
+        const item=document.createElement('div');
+        item.className='status-item';
+        const dot=document.createElement('div');
+        dot.className='dot'+(ok?' green':'');
+        item.appendChild(dot);
+        const span=document.createElement('span');
+        span.textContent=name+(ok?' online':' offline');
+        item.appendChild(span);
+        container.appendChild(item);
+    }
+}
+refreshStatus();
+setInterval(refreshStatus, 10000);
+</script>
+</body>
+</html>
