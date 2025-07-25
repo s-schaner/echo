@@ -72,6 +72,9 @@ def load_config() -> dict:
         data["allowlist"] = default_allowlist()
         save_config(data)
     return data
+def load_config() -> dict:
+    with open(CONFIG_FILE, "r") as f:
+        return yaml.safe_load(f)
 
 
 def save_config(cfg: dict) -> None:
@@ -97,6 +100,10 @@ def ping_service(name: str, url: str) -> bool:
     try:
         if name == "lmstudio":
             url = url.rstrip("/") + "/v1/models"
+def ping_service(name: str, url: str) -> bool:
+    """Return True if service responds, False otherwise."""
+    try:
+
         requests.get(url, timeout=3)
         return True
     except Exception:
@@ -217,6 +224,7 @@ def settings():
         })
         save_config(CONFIG)
         validator.ALLOWLIST = CONFIG.get("allowlist", validator.ALLOWLIST)
+  
     return jsonify({
         "lmstudio_url": CONFIG.get("lmstudio_url"),
         "anythingllm_url": CONFIG.get("anythingllm_url"),
@@ -268,6 +276,8 @@ def chat():
         return jsonify({"response": f"Proposed plan: {plan}"})
 
     # mode == execute: create plan and ask for approval
+    # create new plan
+
     plan = create_plan(text)
     pending_plan = plan
     return jsonify({"plan": plan, "message": "Send {'approve': true} to execute"})
