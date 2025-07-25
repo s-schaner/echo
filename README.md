@@ -23,6 +23,10 @@ complex workflows can be triggered via N8N.
   10&nbsp;seconds. Connection events appear as toast notifications.
 - **Planner → validator → executor flow** – proposed commands are validated
   against an allowlist before being run and all output is logged.
+- **Commands tab** – view or extend the current allowlist from the UI and
+  upload custom scripts for execution.
+- **Automatic command presets** – at first launch, AuroraShell detects your
+  operating system and seeds the allowlist with common utilities.
 
 To start the server:
 
@@ -81,6 +85,7 @@ with `{"approve": true}` to execute the plan.
    any API tokens required by your local services. You can also open the
    **Settings** menu in the web UI to change these values while AuroraShell
    is running. Example configuration values:
+
    You can edit `config.yaml` directly or open the **Settings** menu in the
    web UI to update server addresses and API tokens at runtime. Example
    configuration values:
@@ -106,6 +111,10 @@ with `{"approve": true}` to execute the plan.
    fields in `config.yaml` or via the Settings menu.
 
    The same file also contains an `allowlist` array defining which commands
+   may be executed. If the list is empty on first run, AuroraShell detects your
+   operating system and populates it with a basic set of commands (e.g. `ls`,
+   `mkdir` or `dir`). Modify this list – or use the **Commands** tab in the web
+   UI – to control what the agent is permitted to run on your machine.
    may be executed. Modify this list to control what the agent is permitted to
    run on your machine.
 

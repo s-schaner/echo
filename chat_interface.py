@@ -3,10 +3,13 @@ from typing import List, Dict
 import logging
 import threading
 import time
+import platform
+import os
 import requests
 import yaml
 from planner import create_plan
 from validator import is_allowed
+import validator
 from executor import run_command
 
 logging.basicConfig(
@@ -21,6 +24,54 @@ app = Flask(__name__, static_folder="static", template_folder="templates")
 CONFIG_FILE = "config.yaml"
 
 
+def default_allowlist() -> list:
+    """Return a basic set of commands based on the host OS."""
+    if platform.system().lower().startswith("win"):
+        return [
+            "echo",
+            "dir",
+            "cd",
+            "mkdir",
+            "rmdir",
+            "type",
+            "copy",
+            "move",
+            "del",
+            "cls",
+        ]
+    return [
+        "echo",
+        "ls",
+        "pwd",
+        "whoami",
+        "date",
+        "uptime",
+        "cd",
+        "mkdir",
+        "rmdir",
+        "touch",
+        "cat",
+        "cp",
+        "mv",
+        "rm",
+        "head",
+        "tail",
+        "grep",
+        "find",
+    ]
+
+
+def load_config() -> dict:
+    if not os.path.exists(CONFIG_FILE):
+        cfg = {"port": 5000, "allowlist": default_allowlist()}
+        save_config(cfg)
+        return cfg
+    with open(CONFIG_FILE, "r") as f:
+        data = yaml.safe_load(f) or {}
+    if not data.get("allowlist"):
+        data["allowlist"] = default_allowlist()
+        save_config(data)
+    return data
 def load_config() -> dict:
     with open(CONFIG_FILE, "r") as f:
         return yaml.safe_load(f)
@@ -32,6 +83,7 @@ def save_config(cfg: dict) -> None:
 
 
 CONFIG = load_config()
+validator.ALLOWLIST = CONFIG.get("allowlist", [])
 
 STATUS = {
     "lmstudio": False,
@@ -42,9 +94,16 @@ STATUS = {
 EVENTS: list[str] = []
 LM_MESSAGES: List[Dict[str, str]] = []
 
+
 def ping_service(name: str, url: str) -> bool:
     """Return True if service responds, False otherwise."""
     try:
+        if name == "lmstudio":
+            url = url.rstrip("/") + "/v1/models"
+def ping_service(name: str, url: str) -> bool:
+    """Return True if service responds, False otherwise."""
+    try:
+
         requests.get(url, timeout=3)
         return True
     except Exception:
@@ -75,6 +134,7 @@ def check_services() -> None:
         time.sleep(10)
 
 pending_plan = None
+
 
 def call_lmstudio(messages: List[Dict[str, str]]) -> str:
     """Send chat messages to LM Studio and return the assistant reply."""
@@ -126,6 +186,28 @@ def events():
     return jsonify(msgs)
 
 
+@app.route("/allowlist", methods=["GET", "POST"])
+def allowlist_endpoint():
+    """Get or append allowed commands."""
+    global CONFIG
+    if request.method == "POST":
+        data = request.get_json() or {}
+        cmd = data.get("command", "").strip()
+        if cmd:
+            CONFIG.setdefault("allowlist", [])
+            if cmd not in CONFIG["allowlist"]:
+                CONFIG["allowlist"].append(cmd)
+                validator.ALLOWLIST = CONFIG["allowlist"]
+                save_config(CONFIG)
+    return jsonify(CONFIG.get("allowlist", []))
+
+
+@app.route("/commands")
+def commands_page():
+    """Display allowed commands and form to add more."""
+    return render_template("commands.html")
+
+
 @app.route("/settings", methods=["GET", "POST"])
 def settings():
     """Get or update server configuration."""
@@ -141,6 +223,8 @@ def settings():
             "n8n_token": data.get("n8n_token", CONFIG.get("n8n_token")),
         })
         save_config(CONFIG)
+        validator.ALLOWLIST = CONFIG.get("allowlist", validator.ALLOWLIST)
+  
     return jsonify({
         "lmstudio_url": CONFIG.get("lmstudio_url"),
         "anythingllm_url": CONFIG.get("anythingllm_url"),
@@ -149,6 +233,7 @@ def settings():
         "anythingllm_token": CONFIG.get("anythingllm_token"),
         "n8n_token": CONFIG.get("n8n_token"),
     })
+
 
 @app.route("/lmchat", methods=["GET", "POST"])
 def lmchat():
@@ -192,6 +277,7 @@ def chat():
 
     # mode == execute: create plan and ask for approval
     # create new plan
+
     plan = create_plan(text)
     pending_plan = plan
     return jsonify({"plan": plan, "message": "Send {'approve': true} to execute"})
