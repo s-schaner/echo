@@ -33,6 +33,8 @@ python chat_interface.py
 Open `http://localhost:5000/` in your browser to use the web chat UI
 with a colorful Aurora motif. The input box includes a **mode selector**
 so you can choose between simple chat and command execution.
+with a colorful Aurora motif.
+
 
 Send a chat message with:
 
@@ -45,6 +47,11 @@ The server will respond with the planned command. Set `mode` to `execute`
 in the JSON body (or select **Execute** in the web UI) to trigger the
 approval workflow. Send another request with `{"approve": true}` to run
 the command.
+    -d '{"message": "date"}'
+```
+
+The server will respond with the planned command. Send another request
+with `{"approve": true}` to execute the plan.
 
 ## Installation
 
@@ -74,6 +81,9 @@ the command.
    any API tokens required by your local services. You can also open the
    **Settings** menu in the web UI to change these values while AuroraShell
    is running. Example configuration values:
+   You can edit `config.yaml` directly or open the **Settings** menu in the
+   web UI to update server addresses and API tokens at runtime. Example
+   configuration values:
 
    ```yaml
   port: 5000
@@ -84,7 +94,6 @@ the command.
   lmstudio_url: "http://127.0.0.1:1234"   # Update with your LM Studio URL
    lmstudio_token: ""
   ```
-
    **Configuration options**
    - `port` – HTTP port for the Flask server
    - `n8n_url` and `n8n_token` – endpoint and optional API token for your N8N
@@ -99,6 +108,14 @@ the command.
    The same file also contains an `allowlist` array defining which commands
    may be executed. Modify this list to control what the agent is permitted to
    run on your machine.
+
+
+  lmstudio_token: ""
+  ```
+
+   If your services require authentication tokens, fill in the appropriate
+   fields in `config.yaml` or via the Settings menu.
+
 
 5. **Run the server**
 

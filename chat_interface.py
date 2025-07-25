@@ -42,7 +42,6 @@ STATUS = {
 EVENTS: list[str] = []
 LM_MESSAGES: List[Dict[str, str]] = []
 
-
 def ping_service(name: str, url: str) -> bool:
     """Return True if service responds, False otherwise."""
     try:
@@ -76,7 +75,6 @@ def check_services() -> None:
         time.sleep(10)
 
 pending_plan = None
-
 
 def call_lmstudio(messages: List[Dict[str, str]]) -> str:
     """Send chat messages to LM Studio and return the assistant reply."""
@@ -152,7 +150,6 @@ def settings():
         "n8n_token": CONFIG.get("n8n_token"),
     })
 
-
 @app.route("/lmchat", methods=["GET", "POST"])
 def lmchat():
     """Interactive chat endpoint and page for LM Studio conversations."""
@@ -194,6 +191,7 @@ def chat():
         return jsonify({"response": f"Proposed plan: {plan}"})
 
     # mode == execute: create plan and ask for approval
+    # create new plan
     plan = create_plan(text)
     pending_plan = plan
     return jsonify({"plan": plan, "message": "Send {'approve': true} to execute"})

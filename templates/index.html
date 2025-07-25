@@ -29,6 +29,7 @@
                 <option value="execute">Execute</option>
             </select>
             <input type="text" id="chat-input" placeholder="Type your message..." />
+            <input type="text" id="chat-input" placeholder="Type your command..." />
             <button onclick="sendMessage()">Send</button>
         </div>
 </div>
@@ -89,6 +90,7 @@ async function sendMessage() {
     const modeSel = document.getElementById('mode');
     const text = input.value;
     const mode = modeSel.value;
+    const text = input.value;
     if (!text) return;
     const log = document.getElementById('chat-log');
     log.innerHTML += `<div class='user-msg'>${text}</div>`;
@@ -102,6 +104,10 @@ async function sendMessage() {
     if (data.response) {
         log.innerHTML += `<div class='bot-msg'>${data.response}</div>`;
     } else if (data.plan) {
+        body: JSON.stringify({message: text})
+    });
+    const data = await res.json();
+    if (data.plan) {
         log.innerHTML += `<div class='bot-msg'>Plan: ${JSON.stringify(data.plan)}</div>`;
         const approve = confirm('Execute this plan?');
         if (approve) {
