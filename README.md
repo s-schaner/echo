@@ -90,6 +90,10 @@ the command.
    Services that are unavailable will show a red light and the server will
    automatically retry the connection every 10 seconds.
 
+   There is also a separate **LM Studio Chat** page at `/lmchat` for simple
+   conversations directly with your local model. Messages there are sent to
+   the LM Studio API and the full chat log is displayed on screen.
+
 ## Monitoring and Resilience
 
 AuroraShell keeps running even if its supporting services are down. The
