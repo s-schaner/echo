@@ -27,6 +27,9 @@ complex workflows can be triggered via N8N.
   upload custom scripts for execution.
 - **Automatic command presets** – at first launch, AuroraShell detects your
   operating system and seeds the allowlist with common utilities.
+- **Cross-platform shell support** – the executor uses `/bin/bash` on POSIX
+  systems and falls back to the default Windows shell when running on
+  Windows.
 
 To start the server:
 
