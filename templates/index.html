@@ -10,6 +10,7 @@
     <div class="chat-container">
         <h1>AuroraShell</h1>
         <a href="/system" style="color:#fff">System Status</a>
+        <a href="/lmchat" style="color:#fff; margin-left:10px">LM Studio Chat</a>
         <span class="settings-link" onclick="toggleSettings()">Settings</span>
         <div id="settings" class="settings-panel">
             <label>LM Studio URL:<br><input id="lmstudio_url" /></label>
@@ -23,6 +24,11 @@
         <div id="toast" class="toast" style="display:none"></div>
         <div id="chat-log" class="chat-log"></div>
         <div class="input-area">
+            <select id="mode">
+                <option value="chat">Chat</option>
+                <option value="execute">Execute</option>
+            </select>
+            <input type="text" id="chat-input" placeholder="Type your message..." />
             <input type="text" id="chat-input" placeholder="Type your command..." />
             <button onclick="sendMessage()">Send</button>
         </div>
@@ -81,6 +87,9 @@ setInterval(pollEvents,10000);
 
 async function sendMessage() {
     const input = document.getElementById('chat-input');
+    const modeSel = document.getElementById('mode');
+    const text = input.value;
+    const mode = modeSel.value;
     const text = input.value;
     if (!text) return;
     const log = document.getElementById('chat-log');
@@ -89,6 +98,12 @@ async function sendMessage() {
     const res = await fetch('/chat', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({message: text, mode: mode})
+    });
+    const data = await res.json();
+    if (data.response) {
+        log.innerHTML += `<div class='bot-msg'>${data.response}</div>`;
+    } else if (data.plan) {
         body: JSON.stringify({message: text})
     });
     const data = await res.json();

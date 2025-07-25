@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LM Studio Chat</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="chat-container">
+        <h1>LM Studio Chat</h1>
+        <a href="/" style="color:#fff">Back</a>
+        <div id="chat-log" class="chat-log"></div>
+        <div class="input-area">
+            <input type="text" id="chat-input" placeholder="Type your message..." />
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+<script>
+async function sendMessage(){
+    const input=document.getElementById('chat-input');
+    const text=input.value;
+    if(!text) return;
+    const log=document.getElementById('chat-log');
+    log.innerHTML+=`<div class='user-msg'>${text}</div>`;
+    input.value='';
+    const res=await fetch('/lmchat',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({message:text})
+    });
+    const data=await res.json();
+    if(data.response){
+        log.innerHTML+=`<div class='bot-msg'>${data.response}</div>`;
+    }else if(data.error){
+        log.innerHTML+=`<div class='bot-msg error'>Error: ${data.error}</div>`;
+    }
+    log.scrollTop=log.scrollHeight;
+}
+</script>
+</body>
+</html>
