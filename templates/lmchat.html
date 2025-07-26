@@ -7,15 +7,24 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <div class="chat-container">
-        <h1>LM Studio Chat</h1>
-        <a href="/" style="color:#fff">Back</a>
-        <div id="chat-log" class="chat-log"></div>
-        <div class="input-area">
-            <input type="text" id="chat-input" placeholder="Type your message..." />
-            <button onclick="sendMessage()">Send</button>
-        </div>
+<header class="navbar">
+    <div class="nav-links">
+        <a href="/">Chat</a>
+        <a href="/lmchat">LM Chat</a>
+        <a href="/commands">Commands</a>
+        <a href="/system">System Status</a>
+        <a href="/?settings=1" class="settings-link">Settings</a>
     </div>
+    <div id="status-lights" class="status-lights"></div>
+</header>
+<div class="chat-container">
+    <h1>LM Studio Chat</h1>
+    <div id="chat-log" class="chat-log"></div>
+    <div class="input-area">
+        <input type="text" id="chat-input" placeholder="Type your message..." />
+        <button onclick="sendMessage()">Send</button>
+    </div>
+</div>
 <script>
 async function sendMessage(){
     const input=document.getElementById('chat-input');
@@ -38,5 +47,6 @@ async function sendMessage(){
     log.scrollTop=log.scrollHeight;
 }
 </script>
+<script src="/static/status.js"></script>
 </body>
 </html>

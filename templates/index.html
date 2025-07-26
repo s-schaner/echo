@@ -7,32 +7,37 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <div class="chat-container">
-        <h1>AuroraShell</h1>
-        <a href="/system" style="color:#fff">System Status</a>
-        <a href="/lmchat" style="color:#fff; margin-left:10px">LM Studio Chat</a>
-        <a href="/commands" style="color:#fff; margin-left:10px">Commands</a>
+<header class="navbar">
+    <div class="nav-links">
+        <a href="/">Chat</a>
+        <a href="/lmchat">LM Chat</a>
+        <a href="/commands">Commands</a>
+        <a href="/system">System Status</a>
         <span class="settings-link" onclick="toggleSettings()">Settings</span>
-        <div id="settings" class="settings-panel">
-            <label>LM Studio URL:<br><input id="lmstudio_url" /></label>
-            <label>LM Studio Token:<br><input id="lmstudio_token" /></label>
-            <label>AnythingLLM URL:<br><input id="anythingllm_url" /></label>
-            <label>AnythingLLM Token:<br><input id="anythingllm_token" /></label>
-            <label>N8N URL:<br><input id="n8n_url" /></label>
-            <label>N8N Token:<br><input id="n8n_token" /></label>
-            <button onclick="saveSettings()">Save</button>
-        </div>
-        <div id="toast" class="toast" style="display:none"></div>
-        <div id="chat-log" class="chat-log"></div>
-        <div class="input-area">
-            <select id="mode">
-                <option value="chat">Chat</option>
-                <option value="execute">Execute</option>
-            </select>
-            <input type="text" id="chat-input" placeholder="Type your message..." />
-            <input type="text" id="chat-input" placeholder="Type your command..." />
-            <button onclick="sendMessage()">Send</button>
-        </div>
+    </div>
+    <div id="status-lights" class="status-lights"></div>
+</header>
+<div class="chat-container">
+    <h1>AuroraShell</h1>
+    <div id="settings" class="settings-panel">
+        <label>LM Studio URL:<br><input id="lmstudio_url" /></label>
+        <label>LM Studio Token:<br><input id="lmstudio_token" /></label>
+        <label>AnythingLLM URL:<br><input id="anythingllm_url" /></label>
+        <label>AnythingLLM Token:<br><input id="anythingllm_token" /></label>
+        <label>N8N URL:<br><input id="n8n_url" /></label>
+        <label>N8N Token:<br><input id="n8n_token" /></label>
+        <button onclick="saveSettings()">Save</button>
+    </div>
+    <div id="toast" class="toast" style="display:none"></div>
+    <div id="chat-log" class="chat-log"></div>
+    <div class="input-area">
+        <select id="mode">
+            <option value="chat">Chat</option>
+            <option value="execute">Execute</option>
+        </select>
+        <input type="text" id="chat-input" placeholder="Type your message or command..." />
+        <button onclick="sendMessage()">Send</button>
+    </div>
 </div>
 <script>
 const toastEl = document.getElementById('toast');
@@ -48,11 +53,22 @@ async function loadSettings(){
 }
 
 function toggleSettings(){
-    if(settingsEl.style.display==='block'){
-        settingsEl.style.display='none';
+    if(settingsEl.classList.contains('active')){
+        settingsEl.classList.remove('active');
     } else {
-        settingsEl.style.display='block';
+        settingsEl.classList.add('active');
         loadSettings();
+    }
+}
+
+function openSettings(service){
+    if(!settingsEl.classList.contains('active')){
+        toggleSettings();
+    }
+    const map = {lmstudio:'lmstudio_url', anythingllm:'anythingllm_url', n8n:'n8n_url'};
+    const id = map[service];
+    if(id){
+        setTimeout(()=>{document.getElementById(id).focus();},100);
     }
 }
 
@@ -91,7 +107,6 @@ async function sendMessage() {
     const modeSel = document.getElementById('mode');
     const text = input.value;
     const mode = modeSel.value;
-    const text = input.value;
     if (!text) return;
     const log = document.getElementById('chat-log');
     log.innerHTML += `<div class='user-msg'>${text}</div>`;
@@ -105,10 +120,6 @@ async function sendMessage() {
     if (data.response) {
         log.innerHTML += `<div class='bot-msg'>${data.response}</div>`;
     } else if (data.plan) {
-        body: JSON.stringify({message: text})
-    });
-    const data = await res.json();
-    if (data.plan) {
         log.innerHTML += `<div class='bot-msg'>Plan: ${JSON.stringify(data.plan)}</div>`;
         const approve = confirm('Execute this plan?');
         if (approve) {
@@ -127,6 +138,15 @@ async function sendMessage() {
     }
     log.scrollTop = log.scrollHeight;
 }
+
+window.addEventListener('load', () => {
+    const params = new URLSearchParams(window.location.search);
+    const open = params.get('settings');
+    if(open){
+        openSettings(open);
+    }
+});
 </script>
+<script src="/static/status.js"></script>
 </body>
 </html>
