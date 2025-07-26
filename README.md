@@ -16,8 +16,8 @@ complex workflows can be triggered via N8N.
   between normal conversation or command execution using the mode selector.
 - **LM Studio chat page** – a focused interface at `/lmchat` for direct
   conversations with the model.
-- **Settings panel** – configure server URLs and API tokens on the fly without
-  restarting the daemon.
+- **Inline configuration** – update server URLs and API tokens from the form
+  under the status indicators without restarting the daemon.
 - **System status dashboard** – `/system` displays green/red indicators for
   LM Studio, AnythingLLM and N8N with automatic reconnection checks every
   10&nbsp;seconds. Connection events appear as toast notifications.
@@ -84,14 +84,13 @@ with `{"approve": true}` to execute the plan.
 
 4. **Configure AuroraShell**
 
-   Edit `config.yaml` and replace the default server addresses, ports, and
-   any API tokens required by your local services. You can also open the
-   **Settings** menu in the web UI to change these values while AuroraShell
-   is running. Example configuration values:
+    Edit `config.yaml` and replace the default server addresses, ports, and
+    any API tokens required by your local services. You can also adjust these
+    values from the inline configuration form in the web UI while AuroraShell
+    is running. Example configuration values:
 
-   You can edit `config.yaml` directly or open the **Settings** menu in the
-   web UI to update server addresses and API tokens at runtime. Example
-   configuration values:
+    You can edit `config.yaml` directly or use the inline form to update server
+    addresses and API tokens at runtime. Example configuration values:
 
    ```yaml
   port: 5000
@@ -110,8 +109,8 @@ with `{"approve": true}` to execute the plan.
      server used for memory/context retrieval
    - `lmstudio_url` and `lmstudio_token` – LM Studio API endpoint and token
 
-   If your services require authentication tokens, fill in the appropriate
-   fields in `config.yaml` or via the Settings menu.
+    If your services require authentication tokens, fill in the appropriate
+    fields in `config.yaml` or using the inline form.
 
    The same file also contains an `allowlist` array defining which commands
    may be executed. If the list is empty on first run, AuroraShell detects your
@@ -125,8 +124,8 @@ with `{"approve": true}` to execute the plan.
   lmstudio_token: ""
   ```
 
-   If your services require authentication tokens, fill in the appropriate
-   fields in `config.yaml` or via the Settings menu.
+    If your services require authentication tokens, fill in the appropriate
+    fields in `config.yaml` or using the inline form.
 
 
 5. **Run the server**
@@ -140,8 +139,8 @@ with `{"approve": true}` to execute the plan.
    Open `http://<your-ip>:<port>/` in your browser (replace the default
    values with those you configured) to begin chatting with the agent.
 
-   Visit `/system` to view the status dashboard. Use the **Settings** link
-   in the top bar to adjust endpoints while the server is running.
+    Visit `/system` to view the status dashboard. Use the inline form at the
+    top right to adjust endpoints while the server is running.
    Services that are unavailable will show a red light and the server will
    automatically retry the connection every 10 seconds.
 

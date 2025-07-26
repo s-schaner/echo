@@ -13,32 +13,26 @@
         <a href="/lmchat">LM Chat</a>
         <a href="/commands">Commands</a>
         <a href="/system">System Status</a>
-        <span class="settings-link" onclick="toggleSettings()">Settings</span>
     </div>
     <div id="status-lights" class="status-lights"></div>
 </header>
 <div class="chat-container">
     <h1>AuroraShell</h1>
     {% include "_workflow.html" %}
-    <div id="settings" class="settings-panel">
-        <div class="svc">
-            <label>LM Studio:<br>
-                <select id="lmstudio_select" onchange="selectChanged('lmstudio')"></select>
-                <button onclick="deleteServer('lmstudio')">Delete</button>
-            </label>
+    <div id="config" class="config-form">
+        <div class="config-item"><div id="form-status-lmstudio" class="status-dot"></div>
+            <input id="lmstudio_url" placeholder="LM Studio URL">
+            <input id="lmstudio_token" placeholder="Token">
         </div>
-        <div class="svc">
-            <label>AnythingLLM:<br>
-                <select id="anythingllm_select" onchange="selectChanged('anythingllm')"></select>
-                <button onclick="deleteServer('anythingllm')">Delete</button>
-            </label>
+        <div class="config-item"><div id="form-status-anythingllm" class="status-dot"></div>
+            <input id="anythingllm_url" placeholder="AnythingLLM URL">
+            <input id="anythingllm_token" placeholder="Token">
         </div>
-        <div class="svc">
-            <label>N8N:<br>
-                <select id="n8n_select" onchange="selectChanged('n8n')"></select>
-                <button onclick="deleteServer('n8n')">Delete</button>
-            </label>
+        <div class="config-item"><div id="form-status-n8n" class="status-dot"></div>
+            <input id="n8n_url" placeholder="N8N URL">
+            <input id="n8n_token" placeholder="Token">
         </div>
+        <button onclick="saveSettings()">Save</button>
     </div>
     <div id="toast" class="toast" style="display:none"></div>
     <div id="chat-log" class="chat-log"></div>
@@ -53,53 +47,22 @@
 </div>
 <script>
 const toastEl = document.getElementById('toast');
-const settingsEl = document.getElementById('settings');
 let settingsData = {};
 
 async function loadSettings(){
     const res = await fetch('/settings');
     settingsData = await res.json();
-    ['lmstudio','anythingllm','n8n'].forEach(svc=>{
-        const sel = document.getElementById(svc + '_select');
-        if(!sel) return;
-        sel.innerHTML = '';
-        const servers = settingsData[svc + '_servers'] || [];
-        const currentUrl = settingsData[svc + '_url'] || '';
-        servers.forEach((srv,i)=>{
-            const opt = document.createElement('option');
-            opt.value = i;
-            opt.textContent = srv.url;
-            if(srv.url === currentUrl) opt.selected = true;
-            sel.appendChild(opt);
-        });
-        const addOpt = document.createElement('option');
-        addOpt.value = 'new';
-        addOpt.textContent = 'Add new...';
-        sel.appendChild(addOpt);
+    ['lmstudio','anythingllm','n8n'].forEach(svc => {
+        document.getElementById(svc + '_url').value = settingsData[svc + '_url'] || '';
+        document.getElementById(svc + '_token').value = settingsData[svc + '_token'] || '';
     });
 }
 
-function toggleSettings(){
-    if(settingsEl.classList.contains('active')){
-        settingsEl.classList.remove('active');
-    } else {
-        settingsEl.classList.add('active');
-        loadSettings();
-    }
-}
-
-function openSettings(service){
-    if(!settingsEl.classList.contains('active')){
-        toggleSettings();
-    }
-    const map = {lmstudio:'lmstudio_select', anythingllm:'anythingllm_select', n8n:'n8n_select'};
-    const id = map[service];
-    if(id){
-        setTimeout(()=>{document.getElementById(id).focus();},100);
-    }
-}
-
 async function saveSettings(){
+    ['lmstudio','anythingllm','n8n'].forEach(svc => {
+        settingsData[svc + '_url'] = document.getElementById(svc + '_url').value.trim();
+        settingsData[svc + '_token'] = document.getElementById(svc + '_token').value.trim();
+    });
     await fetch('/settings', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
@@ -112,49 +75,6 @@ function showToast(msg){
     toastEl.textContent = msg;
     toastEl.style.display='block';
     setTimeout(()=>{toastEl.style.display='none';},3000);
-}
-
-function selectChanged(service){
-    const sel = document.getElementById(service + '_select');
-    if(!sel) return;
-    if(sel.value === 'new'){
-        const url = prompt('Server URL:');
-        if(!url){ loadSettings(); return; }
-        const token = prompt('Token (optional):') || '';
-        settingsData[service + '_servers'] = settingsData[service + '_servers'] || [];
-        settingsData[service + '_servers'].push({url, token});
-        settingsData[service + '_url'] = url;
-        settingsData[service + '_token'] = token;
-        saveSettings().then(loadSettings);
-    } else {
-        const idx = parseInt(sel.value,10);
-        const srv = (settingsData[service + '_servers'] || [])[idx];
-        if(srv){
-            settingsData[service + '_url'] = srv.url;
-            settingsData[service + '_token'] = srv.token;
-            saveSettings();
-        }
-    }
-}
-
-function deleteServer(service){
-    const sel = document.getElementById(service + '_select');
-    const idx = parseInt(sel.value,10);
-    if(isNaN(idx)) return;
-    if(!confirm('Delete this server?')) return;
-    const list = settingsData[service + '_servers'] || [];
-    const removed = list.splice(idx,1);
-    if(settingsData[service + '_url'] === removed[0].url){
-        if(list.length){
-            settingsData[service + '_url'] = list[0].url;
-            settingsData[service + '_token'] = list[0].token;
-        }else{
-            settingsData[service + '_url'] = '';
-            settingsData[service + '_token'] = '';
-        }
-    }
-    settingsData[service + '_servers'] = list;
-    saveSettings().then(loadSettings);
 }
 
 async function pollEvents(){
@@ -202,11 +122,7 @@ async function sendMessage() {
 }
 
 window.addEventListener('load', () => {
-    const params = new URLSearchParams(window.location.search);
-    const open = params.get('settings');
-    if(open){
-        openSettings(open);
-    }
+    loadSettings();
 });
 </script>
 <script src="/static/status.js"></script>
