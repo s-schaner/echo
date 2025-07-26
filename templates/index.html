@@ -61,11 +61,14 @@
 
     <div class="pane launcher-pane">
         <h2>Command Launcher</h2>
+        <div id="launcher-list" class="chat-log" style="flex:1;margin-bottom:5px;"></div>
         <div class="input-area">
             <input id="launcher-input" type="text" placeholder="Command" />
             <button onclick="runCmd()">Run</button>
             <button onclick="addCmd()">Add</button>
         </div>
+        <button onclick="loadHostCommands()" style="margin-top:5px;">Probe Commands</button>
+        <div id="host-commands" class="chat-log" style="height:120px;margin-top:5px;"></div>
     </div>
 </div>
 <script>
@@ -157,39 +160,65 @@ async function loadAllowlist(){
     const res = await fetch('/allowlist');
     const data = await res.json();
     const list = document.getElementById('allow-list');
+    const launch = document.getElementById('launcher-list');
     list.innerHTML = '';
+    launch.innerHTML = '';
     data.forEach(cmd => {
         const div = document.createElement('div');
         div.textContent = cmd;
-        list.appendChild(div);
+        list.appendChild(div.cloneNode(true));
+        div.onclick = () => runCmd(cmd);
+        launch.appendChild(div);
     });
 }
 
-async function addCmd(){
-    const input = document.getElementById('launcher-input');
-    const cmd = input.value.trim();
+async function addCmd(cmd){
+    if(cmd === undefined){
+        const input = document.getElementById('launcher-input');
+        cmd = input.value.trim();
+        input.value='';
+    }
     if(!cmd) return;
     await fetch('/allowlist', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({command: cmd})
     });
-    input.value='';
     loadAllowlist();
 }
 
-async function runCmd(){
-    const input = document.getElementById('launcher-input');
-    const cmd = input.value.trim();
+async function runCmd(cmd){
+    if(cmd === undefined){
+        const input = document.getElementById('launcher-input');
+        cmd = input.value.trim();
+        input.value='';
+    }
     if(!cmd) return;
-    input.value='';
     await sendMessage(cmd, 'execute');
+}
+
+async function loadHostCommands(){
+    const res = await fetch('/probe_info');
+    const data = await res.json();
+    const list = document.getElementById('host-commands');
+    list.innerHTML = '';
+    (data.commands || []).forEach(cmd => {
+        const div = document.createElement('div');
+        div.textContent = cmd;
+        const btn = document.createElement('button');
+        btn.textContent = 'Add';
+        btn.style.marginLeft = '8px';
+        btn.onclick = () => addCmd(cmd);
+        div.appendChild(btn);
+        list.appendChild(div);
+    });
 }
 
 window.addEventListener('load', () => {
     loadSettings();
     startLogStream();
     loadAllowlist();
+    loadHostCommands();
 });
 </script>
 <script src="/static/status.js"></script>
