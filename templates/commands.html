@@ -6,15 +6,24 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <div class="chat-container">
-        <h1>Allowed Commands</h1>
-        <a href="/" style="color:#fff">Back</a>
-        <div id="cmd-list" class="chat-log" style="height:200px"></div>
-        <div class="input-area">
-            <input id="new-cmd" type="text" placeholder="Add command or script" />
-            <button onclick="addCmd()">Add</button>
-        </div>
+<header class="navbar">
+    <div class="nav-links">
+        <a href="/">Chat</a>
+        <a href="/lmchat">LM Chat</a>
+        <a href="/commands">Commands</a>
+        <a href="/system">System Status</a>
+        <a href="/?settings=1" class="settings-link">Settings</a>
     </div>
+    <div id="status-lights" class="status-lights"></div>
+</header>
+<div class="chat-container">
+    <h1>Allowed Commands</h1>
+    <div id="cmd-list" class="chat-log" style="height:200px"></div>
+    <div class="input-area">
+        <input id="new-cmd" type="text" placeholder="Add command or script" />
+        <button onclick="addCmd()">Add</button>
+    </div>
+</div>
 <script>
 async function loadList(){
     const res = await fetch('/allowlist');
@@ -41,5 +50,6 @@ async function addCmd(){
 }
 loadList();
 </script>
+<script src="/static/status.js"></script>
 </body>
 </html>

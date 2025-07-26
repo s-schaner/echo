@@ -12,11 +12,20 @@
     </style>
 </head>
 <body>
-    <div class="chat-container">
-        <h1>System Status</h1>
-        <div id="status" class="status-grid"></div>
-        <a href="/">Back</a>
+<header class="navbar">
+    <div class="nav-links">
+        <a href="/">Chat</a>
+        <a href="/lmchat">LM Chat</a>
+        <a href="/commands">Commands</a>
+        <a href="/system">System Status</a>
+        <a href="/?settings=1" class="settings-link">Settings</a>
     </div>
+    <div id="status-lights" class="status-lights"></div>
+</header>
+<div class="chat-container">
+    <h1>System Status</h1>
+    <div id="status" class="status-grid"></div>
+</div>
 <script>
 async function refreshStatus(){
     const res=await fetch('/status');
@@ -38,5 +47,6 @@ async function refreshStatus(){
 refreshStatus();
 setInterval(refreshStatus, 10000);
 </script>
+<script src="/static/status.js"></script>
 </body>
 </html>
