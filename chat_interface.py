@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, Response
 from typing import List, Dict
 import logging
 import threading
@@ -126,6 +126,19 @@ EVENTS: list[str] = []
 LM_MESSAGES: List[Dict[str, str]] = []
 
 
+def generate():
+    """Yield new log lines as server-sent events."""
+    log_path = os.path.join("logs", "agent.log")
+    with open(log_path, "r") as f:
+        f.seek(0, os.SEEK_END)
+        while True:
+            line = f.readline()
+            if line:
+                yield f"data: {line}\n\n"
+            else:
+                time.sleep(1)
+
+
 def probe_os_info() -> Dict:
     """Gather OS details and available commands."""
     os_name = platform.platform()
@@ -247,6 +260,12 @@ def events():
     msgs = EVENTS.copy()
     EVENTS.clear()
     return jsonify(msgs)
+
+
+@app.route("/logstream")
+def logstream():
+    """Stream the agent log as server-sent events."""
+    return Response(generate(), mimetype="text/event-stream")
 
 
 @app.route("/allowlist", methods=["GET", "POST"])
