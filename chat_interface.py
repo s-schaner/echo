@@ -210,6 +210,49 @@ def check_services() -> None:
         time.sleep(10)
 
 pending_plan = None
+pending_command = None
+
+
+def call_anythingllm(prompt: str) -> Dict:
+    """Send a prompt to AnythingLLM and return the parsed JSON."""
+    url = CONFIG.get("anythingllm_url", "").rstrip("/") + "/api/chat"
+    headers = {"Content-Type": "application/json"}
+    token = CONFIG.get("anythingllm_token")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    resp = requests.post(url, json={"prompt": prompt}, headers=headers, timeout=30)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def execute_parsed_command(cmd: Dict) -> Dict:
+    """Run a parsed command locally and return result info."""
+    name = cmd.get("command")
+    params = cmd.get("parameters", {})
+    try:
+        if name == "create_file":
+            path = params.get("filepath")
+            content = params.get("content", "")
+            if not path:
+                raise ValueError("Missing filepath")
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w") as f:
+                f.write(content)
+            logger.info("Created file %s", path)
+            return {"success": True, "message": f"File created at {path}"}
+        elif name == "delete_file":
+            path = params.get("filepath")
+            if not path:
+                raise ValueError("Missing filepath")
+            os.remove(path)
+            logger.info("Deleted file %s", path)
+            return {"success": True, "message": f"File deleted: {path}"}
+        # placeholder for more commands
+        else:
+            return {"success": False, "error": f"Unknown command: {name}"}
+    except Exception as exc:
+        logger.exception("Command execution failed: %s", exc)
+        return {"success": False, "error": str(exc)}
 
 
 def call_lmstudio(messages: List[Dict[str, str]]) -> str:
@@ -357,11 +400,18 @@ def lmchat():
 
 @app.route("/chat", methods=["POST"])
 def chat():
-    global pending_plan
+    global pending_plan, pending_command
     data = request.get_json() or {}
     text = data.get("message", "")
     mode = data.get("mode", "chat")
     approve = data.get("approve", False)
+
+    if approve and pending_command:
+        cmd = pending_command
+        pending_command = None
+        result = execute_parsed_command(cmd)
+        append_log({"command": cmd, "result": result})
+        return jsonify(result)
 
     if approve and pending_plan:
         plan = pending_plan
@@ -382,6 +432,16 @@ def chat():
             return jsonify({"response": reply})
         except Exception as exc:
             logger.exception("Chat failed: %s", exc)
+            return jsonify({"error": str(exc)})
+
+    if mode == "command":
+        try:
+            cmd = call_anythingllm(text)
+            pending_command = cmd
+            summary = cmd.get("summary", "")
+            return jsonify({"summary": summary})
+        except Exception as exc:
+            logger.exception("AnythingLLM parse failed: %s", exc)
             return jsonify({"error": str(exc)})
 
     # mode == execute: create plan and ask for approval
