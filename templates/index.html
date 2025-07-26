@@ -20,13 +20,24 @@
 <div class="chat-container">
     <h1>AuroraShell</h1>
     <div id="settings" class="settings-panel">
-        <label>LM Studio URL:<br><input id="lmstudio_url" /></label>
-        <label>LM Studio Token:<br><input id="lmstudio_token" /></label>
-        <label>AnythingLLM URL:<br><input id="anythingllm_url" /></label>
-        <label>AnythingLLM Token:<br><input id="anythingllm_token" /></label>
-        <label>N8N URL:<br><input id="n8n_url" /></label>
-        <label>N8N Token:<br><input id="n8n_token" /></label>
-        <button onclick="saveSettings()">Save</button>
+        <div class="svc">
+            <label>LM Studio:<br>
+                <select id="lmstudio_select" onchange="selectChanged('lmstudio')"></select>
+                <button onclick="deleteServer('lmstudio')">Delete</button>
+            </label>
+        </div>
+        <div class="svc">
+            <label>AnythingLLM:<br>
+                <select id="anythingllm_select" onchange="selectChanged('anythingllm')"></select>
+                <button onclick="deleteServer('anythingllm')">Delete</button>
+            </label>
+        </div>
+        <div class="svc">
+            <label>N8N:<br>
+                <select id="n8n_select" onchange="selectChanged('n8n')"></select>
+                <button onclick="deleteServer('n8n')">Delete</button>
+            </label>
+        </div>
     </div>
     <div id="toast" class="toast" style="display:none"></div>
     <div id="chat-log" class="chat-log"></div>
@@ -42,14 +53,29 @@
 <script>
 const toastEl = document.getElementById('toast');
 const settingsEl = document.getElementById('settings');
+let settingsData = {};
 
 async function loadSettings(){
     const res = await fetch('/settings');
-    const data = await res.json();
-    for(const [k,v] of Object.entries(data)){
-        const el = document.getElementById(k);
-        if(el) el.value = v || '';
-    }
+    settingsData = await res.json();
+    ['lmstudio','anythingllm','n8n'].forEach(svc=>{
+        const sel = document.getElementById(svc + '_select');
+        if(!sel) return;
+        sel.innerHTML = '';
+        const servers = settingsData[svc + '_servers'] || [];
+        const currentUrl = settingsData[svc + '_url'] || '';
+        servers.forEach((srv,i)=>{
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.textContent = srv.url;
+            if(srv.url === currentUrl) opt.selected = true;
+            sel.appendChild(opt);
+        });
+        const addOpt = document.createElement('option');
+        addOpt.value = 'new';
+        addOpt.textContent = 'Add new...';
+        sel.appendChild(addOpt);
+    });
 }
 
 function toggleSettings(){
@@ -65,7 +91,7 @@ function openSettings(service){
     if(!settingsEl.classList.contains('active')){
         toggleSettings();
     }
-    const map = {lmstudio:'lmstudio_url', anythingllm:'anythingllm_url', n8n:'n8n_url'};
+    const map = {lmstudio:'lmstudio_select', anythingllm:'anythingllm_select', n8n:'n8n_select'};
     const id = map[service];
     if(id){
         setTimeout(()=>{document.getElementById(id).focus();},100);
@@ -73,18 +99,10 @@ function openSettings(service){
 }
 
 async function saveSettings(){
-    const payload = {
-        lmstudio_url: document.getElementById('lmstudio_url').value,
-        lmstudio_token: document.getElementById('lmstudio_token').value,
-        anythingllm_url: document.getElementById('anythingllm_url').value,
-        anythingllm_token: document.getElementById('anythingllm_token').value,
-        n8n_url: document.getElementById('n8n_url').value,
-        n8n_token: document.getElementById('n8n_token').value,
-    };
     await fetch('/settings', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(payload)
+        body: JSON.stringify(settingsData)
     });
     showToast('Settings saved');
 }
@@ -93,6 +111,49 @@ function showToast(msg){
     toastEl.textContent = msg;
     toastEl.style.display='block';
     setTimeout(()=>{toastEl.style.display='none';},3000);
+}
+
+function selectChanged(service){
+    const sel = document.getElementById(service + '_select');
+    if(!sel) return;
+    if(sel.value === 'new'){
+        const url = prompt('Server URL:');
+        if(!url){ loadSettings(); return; }
+        const token = prompt('Token (optional):') || '';
+        settingsData[service + '_servers'] = settingsData[service + '_servers'] || [];
+        settingsData[service + '_servers'].push({url, token});
+        settingsData[service + '_url'] = url;
+        settingsData[service + '_token'] = token;
+        saveSettings().then(loadSettings);
+    } else {
+        const idx = parseInt(sel.value,10);
+        const srv = (settingsData[service + '_servers'] || [])[idx];
+        if(srv){
+            settingsData[service + '_url'] = srv.url;
+            settingsData[service + '_token'] = srv.token;
+            saveSettings();
+        }
+    }
+}
+
+function deleteServer(service){
+    const sel = document.getElementById(service + '_select');
+    const idx = parseInt(sel.value,10);
+    if(isNaN(idx)) return;
+    if(!confirm('Delete this server?')) return;
+    const list = settingsData[service + '_servers'] || [];
+    const removed = list.splice(idx,1);
+    if(settingsData[service + '_url'] === removed[0].url){
+        if(list.length){
+            settingsData[service + '_url'] = list[0].url;
+            settingsData[service + '_token'] = list[0].token;
+        }else{
+            settingsData[service + '_url'] = '';
+            settingsData[service + '_token'] = '';
+        }
+    }
+    settingsData[service + '_servers'] = list;
+    saveSettings().then(loadSettings);
 }
 
 async function pollEvents(){

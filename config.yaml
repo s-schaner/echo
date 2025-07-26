@@ -7,9 +7,18 @@ allowlist:
   - date
   - uptime
   - sudo systemctl restart NetworkManager
-n8n_url: "http://localhost:5678"
-n8n_token: ""
-anythingllm_url: "http://localhost:3001"
-anythingllm_token: ""
+lmstudio_servers:
+  - url: "http://localhost:1234"
+    token: ""
+anythingllm_servers:
+  - url: "http://localhost:3001"
+    token: ""
+n8n_servers:
+  - url: "http://localhost:5678"
+    token: ""
 lmstudio_url: "http://localhost:1234"
 lmstudio_token: ""
+anythingllm_url: "http://localhost:3001"
+anythingllm_token: ""
+n8n_url: "http://localhost:5678"
+n8n_token: ""
