@@ -63,14 +63,45 @@ def default_allowlist() -> list:
 
 
 def load_config() -> dict:
+    """Load configuration file and ensure new server list keys exist."""
+    changed = False
     if not os.path.exists(CONFIG_FILE):
         cfg = {"port": 5000, "allowlist": default_allowlist()}
-        save_config(cfg)
-        return cfg
-    with open(CONFIG_FILE, "r") as f:
-        data = yaml.safe_load(f) or {}
+        changed = True
+        data = cfg
+    else:
+        with open(CONFIG_FILE, "r") as f:
+            data = yaml.safe_load(f) or {}
+
     if not data.get("allowlist"):
         data["allowlist"] = default_allowlist()
+        changed = True
+
+    defaults = {
+        "lmstudio": "http://localhost:1234",
+        "anythingllm": "http://localhost:3001",
+        "n8n": "http://localhost:5678",
+    }
+    for svc, url in defaults.items():
+        list_key = f"{svc}_servers"
+        url_key = f"{svc}_url"
+        tok_key = f"{svc}_token"
+        if list_key not in data:
+            # initialize list from existing url/token if present
+            entry = {
+                "url": data.get(url_key, url),
+                "token": data.get(tok_key, ""),
+            }
+            data[list_key] = [entry]
+            changed = True
+        if url_key not in data and data.get(list_key):
+            data[url_key] = data[list_key][0].get("url", "")
+            changed = True
+        if tok_key not in data and data.get(list_key):
+            data[tok_key] = data[list_key][0].get("token", "")
+            changed = True
+
+    if changed:
         save_config(data)
     return data
 
@@ -208,25 +239,31 @@ def settings():
     global CONFIG
     if request.method == "POST":
         data = request.get_json() or {}
-        CONFIG.update({
-            "lmstudio_url": data.get("lmstudio_url", CONFIG.get("lmstudio_url")),
-            "anythingllm_url": data.get("anythingllm_url", CONFIG.get("anythingllm_url")),
-            "n8n_url": data.get("n8n_url", CONFIG.get("n8n_url")),
-            "lmstudio_token": data.get("lmstudio_token", CONFIG.get("lmstudio_token")),
-            "anythingllm_token": data.get("anythingllm_token", CONFIG.get("anythingllm_token")),
-            "n8n_token": data.get("n8n_token", CONFIG.get("n8n_token")),
-        })
+        for svc in ["lmstudio", "anythingllm", "n8n"]:
+            url_key = f"{svc}_url"
+            tok_key = f"{svc}_token"
+            list_key = f"{svc}_servers"
+            if list_key in data:
+                CONFIG[list_key] = data[list_key]
+            if url_key in data:
+                CONFIG[url_key] = data[url_key]
+            if tok_key in data:
+                CONFIG[tok_key] = data[tok_key]
         save_config(CONFIG)
         validator.ALLOWLIST = CONFIG.get("allowlist", validator.ALLOWLIST)
-  
-    return jsonify({
+
+    response = {
         "lmstudio_url": CONFIG.get("lmstudio_url"),
-        "anythingllm_url": CONFIG.get("anythingllm_url"),
-        "n8n_url": CONFIG.get("n8n_url"),
         "lmstudio_token": CONFIG.get("lmstudio_token"),
+        "lmstudio_servers": CONFIG.get("lmstudio_servers", []),
+        "anythingllm_url": CONFIG.get("anythingllm_url"),
         "anythingllm_token": CONFIG.get("anythingllm_token"),
+        "anythingllm_servers": CONFIG.get("anythingllm_servers", []),
+        "n8n_url": CONFIG.get("n8n_url"),
         "n8n_token": CONFIG.get("n8n_token"),
-    })
+        "n8n_servers": CONFIG.get("n8n_servers", []),
+    }
+    return jsonify(response)
 
 
 @app.route("/lmchat", methods=["GET", "POST"])
