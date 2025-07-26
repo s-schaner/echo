@@ -18,6 +18,36 @@ body {
     margin-top: 60px;
 }
 
+/* grid layout for main dashboard */
+.dashboard {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 10px;
+    width: 90%;
+    height: calc(100vh - 80px);
+    margin-top: 60px;
+}
+
+.pane {
+    background: rgba(0, 0, 0, 0.6);
+    padding: 10px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.terminal-log {
+    background: #111;
+    color: #0f0;
+    flex: 1;
+    padding: 10px;
+    overflow-y: auto;
+    border-radius: 4px;
+    white-space: pre-wrap;
+}
+
 .chat-log {
     background: #222;
     padding: 10px;
