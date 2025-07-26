@@ -121,6 +121,8 @@ async function sendMessage(msg, forcedMode) {
     const log = document.getElementById('chat-log');
     const btn = document.getElementById('send-btn');
     const spin = document.getElementById('spinner');
+    resetWorkflow();
+    setStepStatus('ui','active');
     log.innerHTML += `<div class='chat-bubble user-msg'>${text}</div>`;
     if (msg === undefined) input.value = '';
     btn.classList.add('pulse');
@@ -133,30 +135,55 @@ async function sendMessage(msg, forcedMode) {
     const data = await res.json();
     spin.style.display = 'none';
     btn.classList.remove('pulse');
+    setStepStatus('ui','complete');
+    setStepStatus('arrow-ui','complete');
+    setStepStatus('planner','complete');
+    setStepStatus('arrow-planner','pending');
     if (data.response) {
         log.innerHTML += `<div class='chat-bubble bot-msg'>${data.response}</div>`;
     } else if (data.summary) {
         log.innerHTML += `<div class='chat-bubble bot-msg'>${data.summary}</div>`;
+        showToast('Command: '+data.summary);
         const approve = confirm('Execute this command?');
         if (approve) {
+            setStepStatus('arrow-planner','complete');
+            setStepStatus('validator','active');
             const res2 = await fetch('/chat', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({approve: true})
             });
             const result = await res2.json();
+            setStepStatus('validator','complete');
+            setStepStatus('arrow-validator','complete');
+            setStepStatus('executor','complete');
+            setStepStatus('arrow-executor','complete');
+            setStepStatus('shell','complete');
             log.innerHTML += `<div class='chat-bubble bot-msg'>Result: ${JSON.stringify(result)}</div>`;
         }
     } else if (data.plan) {
         log.innerHTML += `<div class='chat-bubble bot-msg'>Plan: ${JSON.stringify(data.plan)}</div>`;
+        try{
+            const firstTask = (data.plan.tasks || []).find(t => t.command);
+            if(firstTask){
+                showToast('Command: '+firstTask.command);
+            }
+        }catch(e){}
         const approve = confirm('Execute this plan?');
         if (approve) {
+            setStepStatus('arrow-planner','complete');
+            setStepStatus('validator','active');
             const res2 = await fetch('/chat', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({approve: true})
             });
             const result = await res2.json();
+            setStepStatus('validator','complete');
+            setStepStatus('arrow-validator','complete');
+            setStepStatus('executor','complete');
+            setStepStatus('arrow-executor','complete');
+            setStepStatus('shell','complete');
             log.innerHTML += `<div class='chat-bubble bot-msg'>Result: ${JSON.stringify(result)}</div>`;
         }
     } else if (data.success !== undefined) {
@@ -241,8 +268,10 @@ window.addEventListener('load', () => {
     startLogStream();
     loadAllowlist();
     loadHostCommands();
+    resetWorkflow();
 });
 </script>
+<script src="/static/workflow.js"></script>
 <script src="/static/status.js"></script>
 </body>
 </html>

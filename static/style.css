@@ -260,3 +260,17 @@ body {
     to { stroke-dashoffset: -16; }
 }
 
+.workflow-diagram .pending {
+    fill: #2196f3;
+    stroke: #2196f3;
+}
+
+.workflow-diagram .active {
+    fill: #ffeb3b;
+    stroke: #ffeb3b;
+}
+
+.workflow-diagram .complete {
+    fill: #66bb6a;
+    stroke: #66bb6a;
+}
