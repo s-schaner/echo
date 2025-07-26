@@ -80,36 +80,6 @@ body {
     z-index: 1000;
 }
 
-.settings-link {
-    margin-left: 10px;
-    cursor: pointer;
-    color: #fff;
-}
-
-.settings-panel {
-    display: none;
-    background: #222;
-    padding: 10px;
-    border-radius: 4px;
-    margin-top: 10px;
-}
-
-.settings-panel input {
-    width: 100%;
-    margin-bottom: 5px;
-    padding: 6px;
-    border-radius: 4px;
-    border: none;
-}
-
-.settings-panel button {
-    padding: 8px 12px;
-    border: none;
-    background: #2196f3;
-    color: #fff;
-    border-radius: 4px;
-    cursor: pointer;
-}
 
 /* navigation bar */
 .navbar {
@@ -149,6 +119,42 @@ body {
     background: #66bb6a;
 }
 
+.config-form {
+    position: fixed;
+    top: 50px;
+    right: 10px;
+    background: #222;
+    padding: 10px;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    z-index: 900;
+}
+
+.config-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.config-item input {
+    padding: 4px 6px;
+    border-radius: 4px;
+    border: none;
+    background: #333;
+    color: #fff;
+}
+
+.config-form button {
+    padding: 6px 12px;
+    border: none;
+    background: #2196f3;
+    color: #fff;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
 @keyframes fadeInUp {
     from {opacity: 0; transform: translateY(10px);}
     to {opacity: 1; transform: translateY(0);}
@@ -158,12 +164,3 @@ body {
     animation: fadeInUp 0.3s ease;
 }
 
-.settings-panel {
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.3s ease;
-}
-
-.settings-panel.active {
-    max-height: 500px;
-}
