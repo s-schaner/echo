@@ -23,7 +23,8 @@
     <div id="chat-log" class="chat-log"></div>
     <div class="input-area">
         <input type="text" id="chat-input" placeholder="Type your message..." />
-        <button onclick="sendMessage()">Send</button>
+        <button id="send-btn" onclick="sendMessage()">Send</button>
+        <div id="spinner" class="spinner" style="display:none;margin-left:8px"></div>
     </div>
 </div>
 <script>
@@ -32,18 +33,24 @@ async function sendMessage(){
     const text=input.value;
     if(!text) return;
     const log=document.getElementById('chat-log');
-    log.innerHTML+=`<div class='user-msg'>${text}</div>`;
+    const btn=document.getElementById('send-btn');
+    const spin=document.getElementById('spinner');
+    log.innerHTML+=`<div class='chat-bubble user-msg'>${text}</div>`;
     input.value='';
+    btn.classList.add('pulse');
+    spin.style.display='block';
     const res=await fetch('/lmchat',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({message:text})
     });
     const data=await res.json();
+    spin.style.display='none';
+    btn.classList.remove('pulse');
     if(data.response){
-        log.innerHTML+=`<div class='bot-msg'>${data.response}</div>`;
+        log.innerHTML+=`<div class='chat-bubble bot-msg'>${data.response}</div>`;
     }else if(data.error){
-        log.innerHTML+=`<div class='bot-msg error'>Error: ${data.error}</div>`;
+        log.innerHTML+=`<div class='chat-bubble bot-msg error'>Error: ${data.error}</div>`;
     }
     log.scrollTop=log.scrollHeight;
 }

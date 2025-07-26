@@ -1,12 +1,14 @@
 body {
-    background: linear-gradient(120deg, #1a2a6c, #b21f1f, #fdbb2d);
-    font-family: Arial, sans-serif;
+    /* Aurora-inspired gradient backdrop */
+    background: linear-gradient(120deg, #0f2027, #203a43, #2c5364);
+    font-family: 'Segoe UI', Tahoma, sans-serif;
     color: #f0f0f0;
     height: 100vh;
     margin: 0;
     display: flex;
     justify-content: center;
     align-items: center;
+    overflow: hidden;
 }
 
 .chat-container {
@@ -16,6 +18,8 @@ body {
     width: 80%;
     max-width: 600px;
     margin-top: 60px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
 }
 
 /* grid layout for main dashboard */
@@ -29,6 +33,13 @@ body {
     margin-top: 60px;
 }
 
+@media (max-width: 700px) {
+    .dashboard {
+        grid-template-columns: 1fr;
+        grid-template-rows: repeat(4, auto);
+    }
+}
+
 .pane {
     background: rgba(0, 0, 0, 0.6);
     padding: 10px;
@@ -36,6 +47,8 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
 }
 
 .terminal-log {
@@ -54,6 +67,8 @@ body {
     height: 300px;
     overflow-y: auto;
     border-radius: 4px;
+    display: flex;
+    flex-direction: column;
 }
 
 .input-area {
@@ -83,20 +98,47 @@ body {
     color: #fff;
     border-radius: 0 4px 4px 0;
     cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.input-area button:active {
+    transform: scale(0.95);
+}
+
+.pulse {
+    animation: pulse 0.5s ease;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+
+.chat-bubble {
+    padding: 8px 12px;
+    border-radius: 16px;
+    margin: 4px 0;
+    max-width: 80%;
+    animation: fadeInUp 0.3s ease;
 }
 
 .user-msg {
-    color: #a0e7e5;
-    margin: 5px 0;
+    color: #fff;
+    background: #3a8ceb;
+    align-self: flex-end;
 }
 
 .bot-msg {
-    color: #ffe57f;
-    margin: 5px 0;
+    color: #fff;
+    background: #444;
+    align-self: flex-start;
 }
 
 .bot-msg.error {
     color: #ff6b6b;
+    background: #5a0000;
 }
 
 .toast {
@@ -192,5 +234,29 @@ body {
 
 .user-msg, .bot-msg {
     animation: fadeInUp 0.3s ease;
+}
+
+/* loading spinner used during command execution */
+.spinner {
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #66bb6a;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* animated workflow diagram arrows */
+.workflow-diagram line {
+    stroke-dasharray: 8;
+    animation: dash 5s linear infinite;
+}
+
+@keyframes dash {
+    to { stroke-dashoffset: -16; }
 }
 

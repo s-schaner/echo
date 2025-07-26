@@ -46,7 +46,8 @@
                 <option value="command">LLM Command</option>
             </select>
             <input type="text" id="chat-input" placeholder="Type your message or command..." />
-            <button onclick="sendMessage()">Send</button>
+            <button id="send-btn" onclick="sendMessage()">Send</button>
+            <div id="spinner" class="spinner" style="display:none;margin-left:8px"></div>
         </div>
     </div>
 
@@ -118,18 +119,24 @@ async function sendMessage(msg, forcedMode) {
     const mode = forcedMode !== undefined ? forcedMode : modeSel.value;
     if (!text) return;
     const log = document.getElementById('chat-log');
-    log.innerHTML += `<div class='user-msg'>${text}</div>`;
+    const btn = document.getElementById('send-btn');
+    const spin = document.getElementById('spinner');
+    log.innerHTML += `<div class='chat-bubble user-msg'>${text}</div>`;
     if (msg === undefined) input.value = '';
+    btn.classList.add('pulse');
+    spin.style.display = 'block';
     const res = await fetch('/chat', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({message: text, mode: mode})
     });
     const data = await res.json();
+    spin.style.display = 'none';
+    btn.classList.remove('pulse');
     if (data.response) {
-        log.innerHTML += `<div class='bot-msg'>${data.response}</div>`;
+        log.innerHTML += `<div class='chat-bubble bot-msg'>${data.response}</div>`;
     } else if (data.summary) {
-        log.innerHTML += `<div class='bot-msg'>${data.summary}</div>`;
+        log.innerHTML += `<div class='chat-bubble bot-msg'>${data.summary}</div>`;
         const approve = confirm('Execute this command?');
         if (approve) {
             const res2 = await fetch('/chat', {
@@ -138,10 +145,10 @@ async function sendMessage(msg, forcedMode) {
                 body: JSON.stringify({approve: true})
             });
             const result = await res2.json();
-            log.innerHTML += `<div class='bot-msg'>Result: ${JSON.stringify(result)}</div>`;
+            log.innerHTML += `<div class='chat-bubble bot-msg'>Result: ${JSON.stringify(result)}</div>`;
         }
     } else if (data.plan) {
-        log.innerHTML += `<div class='bot-msg'>Plan: ${JSON.stringify(data.plan)}</div>`;
+        log.innerHTML += `<div class='chat-bubble bot-msg'>Plan: ${JSON.stringify(data.plan)}</div>`;
         const approve = confirm('Execute this plan?');
         if (approve) {
             const res2 = await fetch('/chat', {
@@ -150,14 +157,14 @@ async function sendMessage(msg, forcedMode) {
                 body: JSON.stringify({approve: true})
             });
             const result = await res2.json();
-            log.innerHTML += `<div class='bot-msg'>Result: ${JSON.stringify(result)}</div>`;
+            log.innerHTML += `<div class='chat-bubble bot-msg'>Result: ${JSON.stringify(result)}</div>`;
         }
     } else if (data.success !== undefined) {
-        log.innerHTML += `<div class='bot-msg'>Result: ${JSON.stringify(data)}</div>`;
+        log.innerHTML += `<div class='chat-bubble bot-msg'>Result: ${JSON.stringify(data)}</div>`;
     } else if (data.returncode !== undefined) {
-        log.innerHTML += `<div class='bot-msg'>Result: ${JSON.stringify(data)}</div>`;
+        log.innerHTML += `<div class='chat-bubble bot-msg'>Result: ${JSON.stringify(data)}</div>`;
     } else if (data.error) {
-        log.innerHTML += `<div class='bot-msg error'>Error: ${data.error}</div>`;
+        log.innerHTML += `<div class='chat-bubble bot-msg error'>Error: ${data.error}</div>`;
     }
     log.scrollTop = log.scrollHeight;
 }
