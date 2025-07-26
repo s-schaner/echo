@@ -17,33 +17,55 @@
     </div>
     <div id="status-lights" class="status-lights"></div>
 </header>
-<div class="chat-container">
-    <h1>AuroraShell</h1>
-    {% include "_workflow.html" %}
-    <div id="config" class="config-form">
-        <div class="config-item"><div id="form-status-lmstudio" class="status-dot"></div>
-            <input id="lmstudio_url" placeholder="LM Studio URL">
-            <input id="lmstudio_token" placeholder="Token">
-        </div>
-        <div class="config-item"><div id="form-status-anythingllm" class="status-dot"></div>
-            <input id="anythingllm_url" placeholder="AnythingLLM URL">
-            <input id="anythingllm_token" placeholder="Token">
-        </div>
-        <div class="config-item"><div id="form-status-n8n" class="status-dot"></div>
-            <input id="n8n_url" placeholder="N8N URL">
-            <input id="n8n_token" placeholder="Token">
-        </div>
-        <button onclick="saveSettings()">Save</button>
+<div id="config" class="config-form">
+    <div class="config-item"><div id="form-status-lmstudio" class="status-dot"></div>
+        <input id="lmstudio_url" placeholder="LM Studio URL">
+        <input id="lmstudio_token" placeholder="Token">
     </div>
-    <div id="toast" class="toast" style="display:none"></div>
-    <div id="chat-log" class="chat-log"></div>
-    <div class="input-area">
-        <select id="mode">
-            <option value="chat">Chat</option>
-            <option value="execute">Execute</option>
-        </select>
-        <input type="text" id="chat-input" placeholder="Type your message or command..." />
-        <button onclick="sendMessage()">Send</button>
+    <div class="config-item"><div id="form-status-anythingllm" class="status-dot"></div>
+        <input id="anythingllm_url" placeholder="AnythingLLM URL">
+        <input id="anythingllm_token" placeholder="Token">
+    </div>
+    <div class="config-item"><div id="form-status-n8n" class="status-dot"></div>
+        <input id="n8n_url" placeholder="N8N URL">
+        <input id="n8n_token" placeholder="Token">
+    </div>
+    <button onclick="saveSettings()">Save</button>
+</div>
+<div id="toast" class="toast" style="display:none"></div>
+
+<div class="dashboard">
+    <div class="pane chat-pane">
+        <h1>AuroraShell</h1>
+        {% include "_workflow.html" %}
+        <div id="chat-log" class="chat-log" style="flex:1"></div>
+        <div class="input-area">
+            <select id="mode">
+                <option value="chat">Chat</option>
+                <option value="execute">Execute</option>
+            </select>
+            <input type="text" id="chat-input" placeholder="Type your message or command..." />
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <div class="pane terminal-pane">
+        <h2>Terminal</h2>
+        <pre id="terminal-log" class="terminal-log"></pre>
+    </div>
+
+    <div class="pane allowlist-pane">
+        <h2>Allowed Commands</h2>
+        <div id="allow-list" class="chat-log" style="flex:1"></div>
+    </div>
+
+    <div class="pane launcher-pane">
+        <h2>Command Launcher</h2>
+        <div class="input-area">
+            <input id="launcher-input" type="text" placeholder="Command" />
+            <button onclick="runCmd()">Run</button>
+            <button onclick="addCmd()">Add</button>
+        </div>
     </div>
 </div>
 <script>
@@ -85,15 +107,15 @@ async function pollEvents(){
 }
 setInterval(pollEvents,10000);
 
-async function sendMessage() {
+async function sendMessage(msg, forcedMode) {
     const input = document.getElementById('chat-input');
     const modeSel = document.getElementById('mode');
-    const text = input.value;
-    const mode = modeSel.value;
+    const text = msg !== undefined ? msg : input.value;
+    const mode = forcedMode !== undefined ? forcedMode : modeSel.value;
     if (!text) return;
     const log = document.getElementById('chat-log');
     log.innerHTML += `<div class='user-msg'>${text}</div>`;
-    input.value = '';
+    if (msg === undefined) input.value = '';
     const res = await fetch('/chat', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -122,8 +144,52 @@ async function sendMessage() {
     log.scrollTop = log.scrollHeight;
 }
 
+function startLogStream(){
+    const term = document.getElementById('terminal-log');
+    const es = new EventSource('/logstream');
+    es.onmessage = e => {
+        term.textContent += e.data + '\n';
+        term.scrollTop = term.scrollHeight;
+    };
+}
+
+async function loadAllowlist(){
+    const res = await fetch('/allowlist');
+    const data = await res.json();
+    const list = document.getElementById('allow-list');
+    list.innerHTML = '';
+    data.forEach(cmd => {
+        const div = document.createElement('div');
+        div.textContent = cmd;
+        list.appendChild(div);
+    });
+}
+
+async function addCmd(){
+    const input = document.getElementById('launcher-input');
+    const cmd = input.value.trim();
+    if(!cmd) return;
+    await fetch('/allowlist', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({command: cmd})
+    });
+    input.value='';
+    loadAllowlist();
+}
+
+async function runCmd(){
+    const input = document.getElementById('launcher-input');
+    const cmd = input.value.trim();
+    if(!cmd) return;
+    input.value='';
+    await sendMessage(cmd, 'execute');
+}
+
 window.addEventListener('load', () => {
     loadSettings();
+    startLogStream();
+    loadAllowlist();
 });
 </script>
 <script src="/static/status.js"></script>
