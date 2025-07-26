@@ -42,7 +42,8 @@
         <div class="input-area">
             <select id="mode">
                 <option value="chat">Chat</option>
-                <option value="execute">Execute</option>
+                <option value="execute">Execute Plan</option>
+                <option value="command">LLM Command</option>
             </select>
             <input type="text" id="chat-input" placeholder="Type your message or command..." />
             <button onclick="sendMessage()">Send</button>
@@ -127,6 +128,18 @@ async function sendMessage(msg, forcedMode) {
     const data = await res.json();
     if (data.response) {
         log.innerHTML += `<div class='bot-msg'>${data.response}</div>`;
+    } else if (data.summary) {
+        log.innerHTML += `<div class='bot-msg'>${data.summary}</div>`;
+        const approve = confirm('Execute this command?');
+        if (approve) {
+            const res2 = await fetch('/chat', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({approve: true})
+            });
+            const result = await res2.json();
+            log.innerHTML += `<div class='bot-msg'>Result: ${JSON.stringify(result)}</div>`;
+        }
     } else if (data.plan) {
         log.innerHTML += `<div class='bot-msg'>Plan: ${JSON.stringify(data.plan)}</div>`;
         const approve = confirm('Execute this plan?');
@@ -139,6 +152,8 @@ async function sendMessage(msg, forcedMode) {
             const result = await res2.json();
             log.innerHTML += `<div class='bot-msg'>Result: ${JSON.stringify(result)}</div>`;
         }
+    } else if (data.success !== undefined) {
+        log.innerHTML += `<div class='bot-msg'>Result: ${JSON.stringify(data)}</div>`;
     } else if (data.returncode !== undefined) {
         log.innerHTML += `<div class='bot-msg'>Result: ${JSON.stringify(data)}</div>`;
     } else if (data.error) {
