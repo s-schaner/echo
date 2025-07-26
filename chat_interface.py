@@ -5,6 +5,8 @@ import threading
 import time
 import platform
 import os
+import subprocess
+import getpass
 import requests
 import yaml
 from planner import create_plan
@@ -124,6 +126,42 @@ EVENTS: list[str] = []
 LM_MESSAGES: List[Dict[str, str]] = []
 
 
+def probe_os_info() -> Dict:
+    """Gather OS details and available commands."""
+    os_name = platform.platform()
+    user = getpass.getuser()
+    is_admin = False
+    commands: list[str] = []
+    if platform.system().lower().startswith("win"):
+        try:
+            import ctypes
+            is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
+        except Exception:
+            is_admin = False
+        try:
+            out = subprocess.check_output("help", shell=True, text=True)
+            for line in out.splitlines():
+                parts = line.strip().split()
+                if parts:
+                    commands.append(parts[0])
+        except Exception:
+            pass
+    else:
+        try:
+            is_admin = os.geteuid() == 0
+        except AttributeError:
+            pass
+        try:
+            out = subprocess.check_output(
+                ["/bin/bash", "-lc", "compgen -c"], text=True, timeout=5
+            )
+            commands = list(set(out.split()))
+        except Exception:
+            commands = []
+    commands = sorted(set(commands))
+    return {"os": os_name, "user": user, "is_admin": is_admin, "commands": commands}
+
+
 def ping_service(name: str, url: str) -> bool:
     """Return True if service responds, False otherwise."""
     try:
@@ -231,6 +269,19 @@ def allowlist_endpoint():
 def commands_page():
     """Display allowed commands and form to add more."""
     return render_template("commands.html")
+
+
+@app.route("/probe")
+def probe_page():
+    """Display OS probing results and command list."""
+    return render_template("probe.html")
+
+
+@app.route("/probe_info")
+def probe_info():
+    """Return OS info and available commands."""
+    data = probe_os_info()
+    return jsonify(data)
 
 
 @app.route("/settings", methods=["GET", "POST"])
