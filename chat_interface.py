@@ -10,7 +10,8 @@ import yaml
 from planner import create_plan
 from validator import is_allowed
 import validator
-from executor import run_command
+from executor import execute_plan
+from task_logger import append_log
 
 logging.basicConfig(
     filename="logs/agent.log",
@@ -72,9 +73,6 @@ def load_config() -> dict:
         data["allowlist"] = default_allowlist()
         save_config(data)
     return data
-def load_config() -> dict:
-    with open(CONFIG_FILE, "r") as f:
-        return yaml.safe_load(f)
 
 
 def save_config(cfg: dict) -> None:
@@ -100,10 +98,6 @@ def ping_service(name: str, url: str) -> bool:
     try:
         if name == "lmstudio":
             url = url.rstrip("/") + "/v1/models"
-def ping_service(name: str, url: str) -> bool:
-    """Return True if service responds, False otherwise."""
-    try:
-
         requests.get(url, timeout=3)
         return True
     except Exception:
@@ -265,15 +259,23 @@ def chat():
     if approve and pending_plan:
         plan = pending_plan
         pending_plan = None
-        if not is_allowed(plan["command"]):
-            logger.warning("Blocked command: %s", plan["command"])
-            return jsonify({"error": "Command not allowed"})
-        code, out, err = run_command(plan["command"])
-        return jsonify({"returncode": code, "stdout": out, "stderr": err})
+        for task in plan.get("tasks", []):
+            if task.get("type") == "command" and not is_allowed(task.get("command", "")):
+                logger.warning("Blocked command: %s", task.get("command"))
+                return jsonify({"error": f"Command not allowed: {task.get('command')}"})
+        results = execute_plan(plan)
+        append_log({"plan": plan, "results": results})
+        return jsonify({"results": results})
 
     if mode == "chat":
-        plan = create_plan(text)
-        return jsonify({"response": f"Proposed plan: {plan}"})
+        LM_MESSAGES.append({"role": "user", "content": text})
+        try:
+            reply = call_lmstudio(LM_MESSAGES)
+            LM_MESSAGES.append({"role": "assistant", "content": reply})
+            return jsonify({"response": reply})
+        except Exception as exc:
+            logger.exception("Chat failed: %s", exc)
+            return jsonify({"error": str(exc)})
 
     # mode == execute: create plan and ask for approval
     # create new plan
