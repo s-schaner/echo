@@ -30,6 +30,8 @@ complex workflows can be triggered via N8N.
 - **Cross-platform shell support** – the executor uses `/bin/bash` on POSIX
   systems and falls back to the default Windows shell when running on
   Windows.
+- **Desktop GUI enhancements** – the PyQt interface shows raw LLM replies in a
+  separate pane and keeps a selectable history of generated scripts.
 
 To start the server:
 
