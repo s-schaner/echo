@@ -76,11 +76,15 @@ with `{"approve": true}` to execute the plan.
    source venv/bin/activate
    ```
 
-3. **Install Python dependencies**
+3. **Run the dependency installer**
 
    ```bash
-   pip install -r requirements.txt
+   ./scripts/install_dependencies.sh
    ```
+
+   This script installs the Python packages from `requirements.txt` and sets
+   up Grafana using the official APT repository. Grafana will be available on
+   port `3000` once the service starts.
 
 4. **Configure AuroraShell**
 
