@@ -27,6 +27,12 @@ app = Flask(__name__, static_folder="static", template_folder="templates")
 
 CONFIG_FILE = "config.yaml"
 
+# Prompt for LM Studio when generating scripts
+SCRIPT_SYSTEM_PROMPT = (
+    "You are a local scripting agent that produces executable {os} shell scripts. "
+    "Return only the script without explanation or formatting."
+)
+
 
 def default_allowlist() -> list:
     """Return a basic set of commands based on the host OS."""
@@ -275,7 +281,7 @@ def execute_parsed_command(cmd: Dict) -> Dict:
 def create_script(user_text: str, os_type: str) -> str:
     """Generate a script using the LLM for the specified OS."""
     allowlist = ", ".join(validator.ALLOWLIST)
-    system = f"You generate {os_type} scripts and return only the script."
+    system = SCRIPT_SYSTEM_PROMPT.format(os=os_type)
     user = (
         f"Create a {os_type} script to accomplish: {user_text}. "
         f"Use only these commands if possible: {allowlist}."
