@@ -158,6 +158,7 @@ async function sendMessage(msg, forcedMode) {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({message: text, mode: mode, os: osSel.value, target: targetSel.value})
+        body: JSON.stringify({message: text, mode: mode, os: osSel.value})
     });
     const data = await res.json();
     spin.style.display = 'none';
@@ -224,6 +225,10 @@ async function sendMessage(msg, forcedMode) {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({id: data.id})
+            const res2 = await fetch('/chat', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({approve: true})
             });
             const result = await res2.json();
             setStepStatus('validator','complete');
