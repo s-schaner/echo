@@ -291,18 +291,18 @@ def create_script(user_text: str, os_type: str, target: str = "lmstudio") -> str
     """Generate a script using the LLM for the specified OS."""
     allowlist = ", ".join(validator.ALLOWLIST)
     system = SCRIPT_SYSTEM_PROMPT.format(os=os_type)
-def create_script(user_text: str, os_type: str) -> str:
-    """Generate a script using the LLM for the specified OS."""
-    allowlist = ", ".join(validator.ALLOWLIST)
-    system = f"You generate {os_type} scripts and return only the script."
     user = (
         f"Create a {os_type} script to accomplish: {user_text}. "
         f"Use only these commands if possible: {allowlist}."
     )
     try:
-        call_fn = call_openai if target == "openai" else call_lmstudio
+        if target == "openai":
+            call_fn = call_openai
+        elif target == "lmstudio":
+            call_fn = call_lmstudio
+        else:
+            raise ValueError(f"unknown target: {target}")
         script = call_fn([
-        script = call_lmstudio([
             {"role": "system", "content": system},
             {"role": "user", "content": user},
         ])
@@ -523,7 +523,6 @@ def lmchat():
 @app.route("/chat", methods=["POST"])
 def chat():
     global pending_plan, pending_command, pending_script, SCRIPT_QUEUE, SCRIPT_ID
-    global pending_plan, pending_command, pending_script
     data = request.get_json() or {}
     text = data.get("message", "")
     mode = data.get("mode", "chat")
@@ -587,9 +586,6 @@ def chat():
         SCRIPT_QUEUE.append(item)
         pending_script = item
         return jsonify({"script": script, "id": item["id"]})
-        script = create_script(text, os_type)
-        pending_script = {"script": script, "os": os_type}
-        return jsonify({"script": script})
 
     # mode == execute: create plan and ask for approval
     # create new plan
