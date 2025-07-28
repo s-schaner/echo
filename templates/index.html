@@ -137,6 +137,8 @@ async function pollEvents(){
 }
 setInterval(pollEvents,10000);
 
+const ECHOSHELL_HEADER = '# EchoShell\n';
+
 async function sendMessage(msg, forcedMode) {
     const input = document.getElementById('chat-input');
     const modeSel = document.getElementById('mode');
@@ -145,6 +147,10 @@ async function sendMessage(msg, forcedMode) {
     const text = msg !== undefined ? msg : input.value;
     const mode = forcedMode !== undefined ? forcedMode : modeSel.value;
     if (!text) return;
+    let payloadText = text;
+    if (mode === 'execute' || mode === 'script') {
+        payloadText = ECHOSHELL_HEADER + text;
+    }
     const log = document.getElementById('chat-log');
     const btn = document.getElementById('send-btn');
     const spin = document.getElementById('spinner');
@@ -157,8 +163,7 @@ async function sendMessage(msg, forcedMode) {
     const res = await fetch('/chat', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({message: text, mode: mode, os: osSel.value, target: targetSel.value})
-        body: JSON.stringify({message: text, mode: mode, os: osSel.value})
+        body: JSON.stringify({message: payloadText, mode: mode, os: osSel.value, target: targetSel.value})
     });
     const data = await res.json();
     spin.style.display = 'none';
@@ -221,10 +226,6 @@ async function sendMessage(msg, forcedMode) {
         if (approve) {
             setStepStatus('arrow-planner','complete');
             setStepStatus('validator','active');
-            const res2 = await fetch('/scripts', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({id: data.id})
             const res2 = await fetch('/chat', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
