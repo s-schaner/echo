@@ -6,6 +6,39 @@ allowlist:
   - whoami
   - date
   - uptime
+  - cd
+  - mkdir
+  - rmdir
+  - touch
+  - cat
+  - cp
+  - mv
+  - rm
+  - head
+  - tail
+  - grep
+  - find
+  - chmod
+  - chown
+  - tar
+  - zip
+  - unzip
+  - ps
+  - kill
+  - sh
+  - bash
+  - python
+  - pip
+  - dir
+  - type
+  - copy
+  - move
+  - del
+  - cls
+  - start
+  - tasklist
+  - taskkill
+  - powershell
   - sudo systemctl restart NetworkManager
 lmstudio_servers:
   - url: "http://localhost:1234"

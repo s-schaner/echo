@@ -12,7 +12,8 @@ import yaml
 from planner import create_plan
 from validator import is_allowed
 import validator
-from executor import execute_plan
+from executor import execute_plan, run_command
+import tempfile
 from task_logger import append_log
 
 logging.basicConfig(
@@ -41,6 +42,10 @@ def default_allowlist() -> list:
             "move",
             "del",
             "cls",
+            "start",
+            "tasklist",
+            "taskkill",
+            "powershell",
         ]
     return [
         "echo",
@@ -61,6 +66,17 @@ def default_allowlist() -> list:
         "tail",
         "grep",
         "find",
+        "chmod",
+        "chown",
+        "tar",
+        "zip",
+        "unzip",
+        "ps",
+        "kill",
+        "sh",
+        "bash",
+        "python",
+        "pip",
     ]
 
 
@@ -211,6 +227,7 @@ def check_services() -> None:
 
 pending_plan = None
 pending_command = None
+pending_script = None
 
 
 def call_anythingllm(prompt: str) -> Dict:
@@ -253,6 +270,46 @@ def execute_parsed_command(cmd: Dict) -> Dict:
     except Exception as exc:
         logger.exception("Command execution failed: %s", exc)
         return {"success": False, "error": str(exc)}
+
+
+def create_script(user_text: str, os_type: str) -> str:
+    """Generate a script using the LLM for the specified OS."""
+    allowlist = ", ".join(validator.ALLOWLIST)
+    system = f"You generate {os_type} scripts and return only the script."
+    user = (
+        f"Create a {os_type} script to accomplish: {user_text}. "
+        f"Use only these commands if possible: {allowlist}."
+    )
+    try:
+        script = call_lmstudio([
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ])
+        return script.strip()
+    except Exception as exc:
+        logger.exception("Script generation failed: %s", exc)
+        return ""
+
+
+def execute_script(script: str, os_type: str) -> Dict:
+    """Save script to temp file, run it and return command output."""
+    suffix = ".bat" if os_type.lower().startswith("win") else ".sh"
+    with tempfile.NamedTemporaryFile("w", delete=False, suffix=suffix) as tmp:
+        tmp.write(script)
+        tmp_path = tmp.name
+    try:
+        if not os_type.lower().startswith("win"):
+            os.chmod(tmp_path, 0o700)
+            cmd = f"/bin/bash {tmp_path}"
+        else:
+            cmd = tmp_path
+        code, out, err = run_command(cmd)
+    finally:
+        try:
+            os.remove(tmp_path)
+        except Exception:
+            pass
+    return {"returncode": code, "stdout": out, "stderr": err}
 
 
 def call_lmstudio(messages: List[Dict[str, str]]) -> str:
@@ -400,11 +457,19 @@ def lmchat():
 
 @app.route("/chat", methods=["POST"])
 def chat():
-    global pending_plan, pending_command
+    global pending_plan, pending_command, pending_script
     data = request.get_json() or {}
     text = data.get("message", "")
     mode = data.get("mode", "chat")
     approve = data.get("approve", False)
+    os_type = data.get("os", "linux")
+
+    if approve and pending_script:
+        script_info = pending_script
+        pending_script = None
+        result = execute_script(script_info["script"], script_info["os"])
+        append_log({"script": script_info, "result": result})
+        return jsonify(result)
 
     if approve and pending_command:
         cmd = pending_command
@@ -443,6 +508,11 @@ def chat():
         except Exception as exc:
             logger.exception("AnythingLLM parse failed: %s", exc)
             return jsonify({"error": str(exc)})
+
+    if mode == "script":
+        script = create_script(text, os_type)
+        pending_script = {"script": script, "os": os_type}
+        return jsonify({"script": script})
 
     # mode == execute: create plan and ask for approval
     # create new plan

@@ -40,10 +40,15 @@
         {% include "_workflow.html" %}
         <div id="chat-log" class="chat-log" style="flex:1"></div>
         <div class="input-area">
-            <select id="mode">
+            <select id="mode" onchange="toggleScriptOs()">
                 <option value="chat">Chat</option>
                 <option value="execute">Execute Plan</option>
                 <option value="command">LLM Command</option>
+                <option value="script">Script</option>
+            </select>
+            <select id="script-os" style="display:none;margin-left:4px;">
+                <option value="linux">Linux</option>
+                <option value="windows">Windows</option>
             </select>
             <input type="text" id="chat-input" placeholder="Type your message or command..." />
             <button id="send-btn" onclick="sendMessage()">Send</button>
@@ -105,6 +110,13 @@ function showToast(msg){
     setTimeout(()=>{toastEl.style.display='none';},3000);
 }
 
+function toggleScriptOs(){
+    const modeSel = document.getElementById('mode');
+    const osSel = document.getElementById('script-os');
+    if(!modeSel || !osSel) return;
+    osSel.style.display = modeSel.value === 'script' ? 'inline-block' : 'none';
+}
+
 async function pollEvents(){
     const res = await fetch('/events');
     const events = await res.json();
@@ -115,6 +127,7 @@ setInterval(pollEvents,10000);
 async function sendMessage(msg, forcedMode) {
     const input = document.getElementById('chat-input');
     const modeSel = document.getElementById('mode');
+    const osSel = document.getElementById('script-os');
     const text = msg !== undefined ? msg : input.value;
     const mode = forcedMode !== undefined ? forcedMode : modeSel.value;
     if (!text) return;
@@ -130,7 +143,7 @@ async function sendMessage(msg, forcedMode) {
     const res = await fetch('/chat', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({message: text, mode: mode})
+        body: JSON.stringify({message: text, mode: mode, os: osSel.value})
     });
     const data = await res.json();
     spin.style.display = 'none';
@@ -170,6 +183,25 @@ async function sendMessage(msg, forcedMode) {
             }
         }catch(e){}
         const approve = confirm('Execute this plan?');
+        if (approve) {
+            setStepStatus('arrow-planner','complete');
+            setStepStatus('validator','active');
+            const res2 = await fetch('/chat', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({approve: true})
+            });
+            const result = await res2.json();
+            setStepStatus('validator','complete');
+            setStepStatus('arrow-validator','complete');
+            setStepStatus('executor','complete');
+            setStepStatus('arrow-executor','complete');
+            setStepStatus('shell','complete');
+            log.innerHTML += `<div class='chat-bubble bot-msg'>Result: ${JSON.stringify(result)}</div>`;
+        }
+    } else if (data.script) {
+        log.innerHTML += `<div class='chat-bubble bot-msg'><pre>${data.script}</pre></div>`;
+        const approve = confirm('Run this script?');
         if (approve) {
             setStepStatus('arrow-planner','complete');
             setStepStatus('validator','active');
@@ -269,6 +301,7 @@ window.addEventListener('load', () => {
     loadAllowlist();
     loadHostCommands();
     resetWorkflow();
+    toggleScriptOs();
 });
 </script>
 <script src="/static/workflow.js"></script>
