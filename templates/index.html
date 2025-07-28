@@ -30,6 +30,10 @@
         <input id="n8n_url" placeholder="N8N URL">
         <input id="n8n_token" placeholder="Token">
     </div>
+    <div class="config-item"><div id="form-status-openai" class="status-dot"></div>
+        <input id="openai_url" placeholder="OpenAI URL">
+        <input id="openai_token" placeholder="Token">
+    </div>
     <button onclick="saveSettings()">Save</button>
 </div>
 <div id="toast" class="toast" style="display:none"></div>
@@ -40,10 +44,19 @@
         {% include "_workflow.html" %}
         <div id="chat-log" class="chat-log" style="flex:1"></div>
         <div class="input-area">
-            <select id="mode">
+            <select id="mode" onchange="toggleScriptOs()">
                 <option value="chat">Chat</option>
                 <option value="execute">Execute Plan</option>
                 <option value="command">LLM Command</option>
+                <option value="script">Script</option>
+            </select>
+            <select id="script-os" style="display:none;margin-left:4px;">
+                <option value="linux">Linux</option>
+                <option value="windows">Windows</option>
+            </select>
+            <select id="target-model" style="margin-left:4px;">
+                <option value="lmstudio">LM Studio</option>
+                <option value="openai">OpenAI</option>
             </select>
             <input type="text" id="chat-input" placeholder="Type your message or command..." />
             <button id="send-btn" onclick="sendMessage()">Send</button>
@@ -72,6 +85,11 @@
         <button onclick="loadHostCommands()" style="margin-top:5px;">Probe Commands</button>
         <div id="host-commands" class="chat-log" style="height:120px;margin-top:5px;"></div>
     </div>
+
+    <div class="pane scripts-pane">
+        <h2>Script Loader</h2>
+        <div id="script-list" class="chat-log" style="flex:1;margin-bottom:5px;"></div>
+    </div>
 </div>
 <script>
 const toastEl = document.getElementById('toast');
@@ -80,14 +98,14 @@ let settingsData = {};
 async function loadSettings(){
     const res = await fetch('/settings');
     settingsData = await res.json();
-    ['lmstudio','anythingllm','n8n'].forEach(svc => {
+    ['lmstudio','anythingllm','n8n','openai'].forEach(svc => {
         document.getElementById(svc + '_url').value = settingsData[svc + '_url'] || '';
         document.getElementById(svc + '_token').value = settingsData[svc + '_token'] || '';
     });
 }
 
 async function saveSettings(){
-    ['lmstudio','anythingllm','n8n'].forEach(svc => {
+    ['lmstudio','anythingllm','n8n','openai'].forEach(svc => {
         settingsData[svc + '_url'] = document.getElementById(svc + '_url').value.trim();
         settingsData[svc + '_token'] = document.getElementById(svc + '_token').value.trim();
     });
@@ -105,6 +123,13 @@ function showToast(msg){
     setTimeout(()=>{toastEl.style.display='none';},3000);
 }
 
+function toggleScriptOs(){
+    const modeSel = document.getElementById('mode');
+    const osSel = document.getElementById('script-os');
+    if(!modeSel || !osSel) return;
+    osSel.style.display = modeSel.value === 'script' ? 'inline-block' : 'none';
+}
+
 async function pollEvents(){
     const res = await fetch('/events');
     const events = await res.json();
@@ -115,6 +140,8 @@ setInterval(pollEvents,10000);
 async function sendMessage(msg, forcedMode) {
     const input = document.getElementById('chat-input');
     const modeSel = document.getElementById('mode');
+    const osSel = document.getElementById('script-os');
+    const targetSel = document.getElementById('target-model');
     const text = msg !== undefined ? msg : input.value;
     const mode = forcedMode !== undefined ? forcedMode : modeSel.value;
     if (!text) return;
@@ -130,7 +157,7 @@ async function sendMessage(msg, forcedMode) {
     const res = await fetch('/chat', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({message: text, mode: mode})
+        body: JSON.stringify({message: text, mode: mode, os: osSel.value, target: targetSel.value})
     });
     const data = await res.json();
     spin.style.display = 'none';
@@ -185,6 +212,28 @@ async function sendMessage(msg, forcedMode) {
             setStepStatus('arrow-executor','complete');
             setStepStatus('shell','complete');
             log.innerHTML += `<div class='chat-bubble bot-msg'>Result: ${JSON.stringify(result)}</div>`;
+        }
+    } else if (data.script) {
+        log.innerHTML += `<div class='chat-bubble bot-msg'><pre>${data.script}</pre></div>`;
+        loadScripts();
+        const approve = confirm('Run this script?');
+        if (approve) {
+            setStepStatus('arrow-planner','complete');
+            setStepStatus('validator','active');
+            const res2 = await fetch('/scripts', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({id: data.id})
+            });
+            const result = await res2.json();
+            setStepStatus('validator','complete');
+            setStepStatus('arrow-validator','complete');
+            setStepStatus('executor','complete');
+            setStepStatus('arrow-executor','complete');
+            setStepStatus('shell','complete');
+            log.innerHTML += `<div class='chat-bubble bot-msg'>Result: ${JSON.stringify(result)}</div>`;
+        } else {
+            showToast('Script queued');
         }
     } else if (data.success !== undefined) {
         log.innerHTML += `<div class='chat-bubble bot-msg'>Result: ${JSON.stringify(data)}</div>`;
@@ -263,12 +312,44 @@ async function loadHostCommands(){
     });
 }
 
+async function loadScripts(){
+    const res = await fetch('/scripts');
+    const data = await res.json();
+    const list = document.getElementById('script-list');
+    if(!list) return;
+    list.innerHTML = '';
+    data.forEach(item => {
+        const div = document.createElement('div');
+        div.textContent = (item.script || '').slice(0,60);
+        const btn = document.createElement('button');
+        btn.textContent = 'Run';
+        btn.style.marginLeft = '8px';
+        btn.onclick = () => runScript(item.id);
+        div.appendChild(btn);
+        list.appendChild(div);
+    });
+}
+
+async function runScript(id){
+    const res = await fetch('/scripts', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({id:id})
+    });
+    const data = await res.json();
+    const log = document.getElementById('chat-log');
+    log.innerHTML += `<div class='chat-bubble bot-msg'>Result: ${JSON.stringify(data)}</div>`;
+    loadScripts();
+}
+
 window.addEventListener('load', () => {
     loadSettings();
     startLogStream();
     loadAllowlist();
     loadHostCommands();
+    loadScripts();
     resetWorkflow();
+    toggleScriptOs();
 });
 </script>
 <script src="/static/workflow.js"></script>

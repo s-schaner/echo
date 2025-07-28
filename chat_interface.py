@@ -12,7 +12,8 @@ import yaml
 from planner import create_plan
 from validator import is_allowed
 import validator
-from executor import execute_plan
+from executor import execute_plan, run_command
+import tempfile
 from task_logger import append_log
 
 logging.basicConfig(
@@ -25,6 +26,12 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__, static_folder="static", template_folder="templates")
 
 CONFIG_FILE = "config.yaml"
+
+# Prompt for LM Studio when generating scripts
+SCRIPT_SYSTEM_PROMPT = (
+    "You are a local scripting agent that produces executable {os} shell scripts. "
+    "Return only the script without explanation or formatting."
+)
 
 
 def default_allowlist() -> list:
@@ -41,6 +48,10 @@ def default_allowlist() -> list:
             "move",
             "del",
             "cls",
+            "start",
+            "tasklist",
+            "taskkill",
+            "powershell",
         ]
     return [
         "echo",
@@ -61,6 +72,17 @@ def default_allowlist() -> list:
         "tail",
         "grep",
         "find",
+        "chmod",
+        "chown",
+        "tar",
+        "zip",
+        "unzip",
+        "ps",
+        "kill",
+        "sh",
+        "bash",
+        "python",
+        "pip",
     ]
 
 
@@ -83,6 +105,7 @@ def load_config() -> dict:
         "lmstudio": "http://localhost:1234",
         "anythingllm": "http://localhost:3001",
         "n8n": "http://localhost:5678",
+        "openai": "https://api.openai.com",
     }
     for svc, url in defaults.items():
         list_key = f"{svc}_servers"
@@ -103,6 +126,10 @@ def load_config() -> dict:
             data[tok_key] = data[list_key][0].get("token", "")
             changed = True
 
+    if "openai_model" not in data:
+        data["openai_model"] = "gpt-3.5-turbo"
+        changed = True
+
     if changed:
         save_config(data)
     return data
@@ -120,6 +147,7 @@ STATUS = {
     "lmstudio": False,
     "anythingllm": False,
     "n8n": False,
+    "openai": False,
 }
 
 EVENTS: list[str] = []
@@ -178,7 +206,7 @@ def probe_os_info() -> Dict:
 def ping_service(name: str, url: str) -> bool:
     """Return True if service responds, False otherwise."""
     try:
-        if name == "lmstudio":
+        if name in ("lmstudio", "openai"):
             url = url.rstrip("/") + "/v1/models"
         requests.get(url, timeout=3)
         return True
@@ -193,6 +221,7 @@ def check_services() -> None:
             "lmstudio": "lmstudio_url",
             "anythingllm": "anythingllm_url",
             "n8n": "n8n_url",
+            "openai": "openai_url",
         }.items():
             url = CONFIG.get(key)
             if not url:
@@ -211,6 +240,9 @@ def check_services() -> None:
 
 pending_plan = None
 pending_command = None
+pending_script = None
+SCRIPT_QUEUE: list[Dict] = []
+SCRIPT_ID = 1
 
 
 def call_anythingllm(prompt: str) -> Dict:
@@ -255,6 +287,47 @@ def execute_parsed_command(cmd: Dict) -> Dict:
         return {"success": False, "error": str(exc)}
 
 
+def create_script(user_text: str, os_type: str, target: str = "lmstudio") -> str:
+    """Generate a script using the LLM for the specified OS."""
+    allowlist = ", ".join(validator.ALLOWLIST)
+    system = SCRIPT_SYSTEM_PROMPT.format(os=os_type)
+    user = (
+        f"Create a {os_type} script to accomplish: {user_text}. "
+        f"Use only these commands if possible: {allowlist}."
+    )
+    try:
+        call_fn = call_openai if target == "openai" else call_lmstudio
+        script = call_fn([
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ])
+        return script.strip()
+    except Exception as exc:
+        logger.exception("Script generation failed: %s", exc)
+        return ""
+
+
+def execute_script(script: str, os_type: str) -> Dict:
+    """Save script to temp file, run it and return command output."""
+    suffix = ".bat" if os_type.lower().startswith("win") else ".sh"
+    with tempfile.NamedTemporaryFile("w", delete=False, suffix=suffix) as tmp:
+        tmp.write(script)
+        tmp_path = tmp.name
+    try:
+        if not os_type.lower().startswith("win"):
+            os.chmod(tmp_path, 0o700)
+            cmd = f"/bin/bash {tmp_path}"
+        else:
+            cmd = tmp_path
+        code, out, err = run_command(cmd)
+    finally:
+        try:
+            os.remove(tmp_path)
+        except Exception:
+            pass
+    return {"returncode": code, "stdout": out, "stderr": err}
+
+
 def call_lmstudio(messages: List[Dict[str, str]]) -> str:
     """Send chat messages to LM Studio and return the assistant reply."""
     url = CONFIG.get("lmstudio_url", "")
@@ -267,7 +340,31 @@ def call_lmstudio(messages: List[Dict[str, str]]) -> str:
     if token:
         headers["Authorization"] = f"Bearer {token}"
     payload = {"model": "local", "messages": messages}
-    resp = requests.post(url, json=payload, headers=headers, timeout=60)
+    resp = requests.post(url, json=payload, headers=headers, timeout=600)
+    resp.raise_for_status()
+    data = resp.json()
+    content = (
+        data.get("choices", [{}])[0]
+        .get("message", {})
+        .get("content", "")
+    )
+    return content
+
+
+def call_openai(messages: List[Dict[str, str]]) -> str:
+    """Send chat messages to OpenAI and return the assistant reply."""
+    url = CONFIG.get("openai_url", "https://api.openai.com")
+    if not url.endswith("/v1/chat/completions"):
+        url = url.rstrip("/") + "/v1/chat/completions"
+    headers = {"Content-Type": "application/json"}
+    token = CONFIG.get("openai_token")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    payload = {
+        "model": CONFIG.get("openai_model", "gpt-3.5-turbo"),
+        "messages": messages,
+    }
+    resp = requests.post(url, json=payload, headers=headers, timeout=600)
     resp.raise_for_status()
     data = resp.json()
     content = (
@@ -327,6 +424,23 @@ def allowlist_endpoint():
     return jsonify(CONFIG.get("allowlist", []))
 
 
+@app.route("/scripts", methods=["GET", "POST"])
+def scripts_endpoint():
+    """List queued scripts or execute a script by ID."""
+    global SCRIPT_QUEUE, SCRIPT_ID
+    if request.method == "POST":
+        data = request.get_json() or {}
+        sid = data.get("id")
+        item = next((s for s in SCRIPT_QUEUE if s["id"] == sid), None)
+        if not item:
+            return jsonify({"error": "not found"}), 404
+        SCRIPT_QUEUE = [s for s in SCRIPT_QUEUE if s["id"] != sid]
+        result = execute_script(item["script"], item["os"])
+        append_log({"script": item, "result": result})
+        return jsonify(result)
+    return jsonify(SCRIPT_QUEUE)
+
+
 @app.route("/commands")
 def commands_page():
     """Display allowed commands and form to add more."""
@@ -352,7 +466,7 @@ def settings():
     global CONFIG
     if request.method == "POST":
         data = request.get_json() or {}
-        for svc in ["lmstudio", "anythingllm", "n8n"]:
+        for svc in ["lmstudio", "anythingllm", "n8n", "openai"]:
             url_key = f"{svc}_url"
             tok_key = f"{svc}_token"
             list_key = f"{svc}_servers"
@@ -375,6 +489,9 @@ def settings():
         "n8n_url": CONFIG.get("n8n_url"),
         "n8n_token": CONFIG.get("n8n_token"),
         "n8n_servers": CONFIG.get("n8n_servers", []),
+        "openai_url": CONFIG.get("openai_url"),
+        "openai_token": CONFIG.get("openai_token"),
+        "openai_servers": CONFIG.get("openai_servers", []),
     }
     return jsonify(response)
 
@@ -400,11 +517,21 @@ def lmchat():
 
 @app.route("/chat", methods=["POST"])
 def chat():
-    global pending_plan, pending_command
+    global pending_plan, pending_command, pending_script, SCRIPT_QUEUE, SCRIPT_ID
     data = request.get_json() or {}
     text = data.get("message", "")
     mode = data.get("mode", "chat")
     approve = data.get("approve", False)
+    os_type = data.get("os", "linux")
+    target = data.get("target", "lmstudio")
+
+    if approve and pending_script:
+        script_info = pending_script
+        pending_script = None
+        SCRIPT_QUEUE = [s for s in SCRIPT_QUEUE if s["id"] != script_info["id"]]
+        result = execute_script(script_info["script"], script_info["os"])
+        append_log({"script": script_info, "result": result})
+        return jsonify(result)
 
     if approve and pending_command:
         cmd = pending_command
@@ -427,7 +554,10 @@ def chat():
     if mode == "chat":
         LM_MESSAGES.append({"role": "user", "content": text})
         try:
-            reply = call_lmstudio(LM_MESSAGES)
+            if target == "openai":
+                reply = call_openai(LM_MESSAGES)
+            else:
+                reply = call_lmstudio(LM_MESSAGES)
             LM_MESSAGES.append({"role": "assistant", "content": reply})
             return jsonify({"response": reply})
         except Exception as exc:
@@ -443,6 +573,14 @@ def chat():
         except Exception as exc:
             logger.exception("AnythingLLM parse failed: %s", exc)
             return jsonify({"error": str(exc)})
+
+    if mode == "script":
+        script = create_script(text, os_type, target)
+        item = {"id": SCRIPT_ID, "script": script, "os": os_type}
+        SCRIPT_ID += 1
+        SCRIPT_QUEUE.append(item)
+        pending_script = item
+        return jsonify({"script": script, "id": item["id"]})
 
     # mode == execute: create plan and ask for approval
     # create new plan
