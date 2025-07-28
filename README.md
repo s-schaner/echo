@@ -37,6 +37,18 @@ To start the server:
 python chat_interface.py
 ```
 
+Alternatively you can use the desktop GUI based on PyQt:
+
+```bash
+python pyqt_app.py
+```
+
+To create a standalone executable install PyInstaller and run:
+
+```bash
+pyinstaller --onefile pyqt_app.py
+```
+
 Open `http://localhost:5000/` in your browser to use the web chat UI
 with a colorful Aurora motif. The input box includes a **mode selector**
 so you can choose between simple chat and command execution.
