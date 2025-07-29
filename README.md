@@ -174,3 +174,29 @@ AuroraShell keeps running even if its supporting services are down. The
 server polls LM Studio, AnythingLLM and N8N every 10 seconds. Connection
 loss or restoration events appear as toast notifications in the UI. Use
 the System Status page to check current connectivity states at any time.
+
+## Native Control Mode
+
+A new **native** mode integrates an Electron interface inspired by [UI-TARS Desktop](https://github.com/bytedance/UI-TARS-desktop). The extension resides in `electron_app/` and communicates with AuroraShell entirely on `localhost`.
+
+The Electron workspace provides three custom nodes:
+
+1. **AuroraLLMNode** – sends prompts to a local LM Studio endpoint.
+2. **AuroraExecNode** – confirms and executes validated shell commands using `child_process.spawn`.
+3. **SymbolicNode** – logs symbolic glyphs that represent recursive intent.
+
+Workflows can be saved and shared as `.aurorascript` files using the helper functions in `AuroraShellModule.tsx`.
+
+To build the module run:
+
+```bash
+cd electron_app && npm run build
+```
+
+Launch the desktop orchestrator with:
+
+```bash
+npm start
+```
+
+The existing Flask and PyQt functionality continues to operate normally, and the new mode is optional.
