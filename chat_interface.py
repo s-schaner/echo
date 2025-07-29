@@ -9,6 +9,7 @@ import subprocess
 import getpass
 import requests
 import yaml
+from incoming_listener import start_listener
 from planner import create_plan
 from validator import is_allowed
 import validator
@@ -128,6 +129,10 @@ def load_config() -> dict:
 
     if "openai_model" not in data:
         data["openai_model"] = "gpt-3.5-turbo"
+        changed = True
+
+    if "incoming_port" not in data:
+        data["incoming_port"] = 6001
         changed = True
 
     if changed:
@@ -481,6 +486,8 @@ def settings():
                 CONFIG[url_key] = data[url_key]
             if tok_key in data:
                 CONFIG[tok_key] = data[tok_key]
+        if "incoming_port" in data:
+            CONFIG["incoming_port"] = int(data["incoming_port"])
         save_config(CONFIG)
         validator.ALLOWLIST = CONFIG.get("allowlist", validator.ALLOWLIST)
 
@@ -497,6 +504,7 @@ def settings():
         "openai_url": CONFIG.get("openai_url"),
         "openai_token": CONFIG.get("openai_token"),
         "openai_servers": CONFIG.get("openai_servers", []),
+        "incoming_port": CONFIG.get("incoming_port"),
     }
     return jsonify(response)
 
@@ -597,9 +605,11 @@ def chat():
 
 def main():
     port = CONFIG.get("port", 5000)
+    incoming_port = CONFIG.get("incoming_port", 6001)
     # start background service checker
     thread = threading.Thread(target=check_services, daemon=True)
     thread.start()
+    start_listener(incoming_port)
     app.run(host="0.0.0.0", port=port)
 
 

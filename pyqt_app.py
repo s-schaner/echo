@@ -23,7 +23,7 @@ from PyQt5.QtWidgets import (
     QFormLayout,
     QDialogButtonBox,
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer
 
 from planner import create_plan
 from executor import execute_plan
@@ -38,6 +38,7 @@ from chat_interface import (
     load_config,
     save_config,
 )
+from incoming_listener import start_listener, get_message
 
 SCRIPT_FILE = os.path.join("logs", "scripts.json")
 
@@ -84,6 +85,10 @@ class SettingsDialog(QDialog):
             self.inputs[url_key] = url_edit
             self.inputs[tok_key] = token_edit
 
+        port_edit = QLineEdit(str(cfg.get("incoming_port", "")))
+        form.addRow("Incoming Port", port_edit)
+        self.inputs["incoming_port"] = port_edit
+
         buttons = QDialogButtonBox(
             QDialogButtonBox.Save | QDialogButtonBox.Cancel, parent=self
         )
@@ -97,7 +102,14 @@ class SettingsDialog(QDialog):
 
     def save(self) -> None:
         for key, edit in self.inputs.items():
-            CONFIG[key] = edit.text().strip()
+            value = edit.text().strip()
+            if key == "incoming_port":
+                try:
+                    CONFIG[key] = int(value)
+                except ValueError:
+                    continue
+            else:
+                CONFIG[key] = value
         save_config(CONFIG)
         self.accept()
 
@@ -107,6 +119,8 @@ class ChatWindow(QWidget):
         super().__init__()
         self.setWindowTitle("Echo")
         self.resize(800, 600)
+
+        start_listener(CONFIG.get("incoming_port", 6001))
 
         # menu bar with settings dialog
         menubar = QMenuBar()
@@ -119,6 +133,10 @@ class ChatWindow(QWidget):
 
         self.mode_box = QComboBox()
         self.mode_box.addItems(["chat", "execute", "command", "script"])
+
+        self.source_box = QComboBox()
+        self.source_box.addItems(["textbox", "llm"])
+        self.source_box.currentTextChanged.connect(self.update_input_mode)
 
         self.os_box = QComboBox()
         self.os_box.addItems(["linux", "windows"])
@@ -145,10 +163,15 @@ class ChatWindow(QWidget):
         self.send_btn = QPushButton("Send")
         self.send_btn.clicked.connect(self.handle_send)
 
+        self.poll_timer = QTimer()
+        self.poll_timer.timeout.connect(self.poll_incoming)
+        self.poll_timer.start(1000)
+
         top = QHBoxLayout()
         top.addWidget(self.mode_box)
         top.addWidget(self.os_box)
         top.addWidget(self.target_box)
+        top.addWidget(self.source_box)
 
         bottom = QHBoxLayout()
         bottom.addWidget(self.input)
@@ -166,6 +189,7 @@ class ChatWindow(QWidget):
         layout.addWidget(self.script_list)
         layout.addWidget(self.run_script_btn)
         self.setLayout(layout)
+        self.update_input_mode()
 
     def append_log(self, text: str) -> None:
         self.log.append(text)
@@ -204,16 +228,34 @@ class ChatWindow(QWidget):
         # reload config to pick up changes
         global CONFIG
         CONFIG = load_config()
+        start_listener(CONFIG.get("incoming_port", 6001))
+
+    def update_input_mode(self) -> None:
+        is_text = self.source_box.currentText() == "textbox"
+        self.input.setEnabled(is_text)
+        self.send_btn.setEnabled(is_text)
+
+    def poll_incoming(self) -> None:
+        if self.source_box.currentText() != "llm":
+            return
+        msg = get_message(0)
+        if msg:
+            self.process_text(msg)
 
     def handle_send(self):
+        if self.source_box.currentText() != "textbox":
+            return
         text = self.input.text().strip()
         if not text:
             return
+        self.input.clear()
+        self.process_text(text)
+
+    def process_text(self, text: str) -> None:
         mode = self.mode_box.currentText()
         os_type = self.os_box.currentText()
         target = self.target_box.currentText()
         self.append_log(f"You: {text}")
-        self.input.clear()
 
         try:
             if mode == "chat":
