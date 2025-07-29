@@ -34,6 +34,9 @@
         <input id="openai_url" placeholder="OpenAI URL">
         <input id="openai_token" placeholder="Token">
     </div>
+    <div class="config-item">
+        <input id="incoming_port" placeholder="Incoming Port">
+    </div>
     <button onclick="saveSettings()">Save</button>
 </div>
 <div id="toast" class="toast" style="display:none"></div>
@@ -102,6 +105,7 @@ async function loadSettings(){
         document.getElementById(svc + '_url').value = settingsData[svc + '_url'] || '';
         document.getElementById(svc + '_token').value = settingsData[svc + '_token'] || '';
     });
+    document.getElementById('incoming_port').value = settingsData.incoming_port || '';
 }
 
 async function saveSettings(){
@@ -109,6 +113,7 @@ async function saveSettings(){
         settingsData[svc + '_url'] = document.getElementById(svc + '_url').value.trim();
         settingsData[svc + '_token'] = document.getElementById(svc + '_token').value.trim();
     });
+    settingsData.incoming_port = parseInt(document.getElementById('incoming_port').value) || settingsData.incoming_port;
     await fetch('/settings', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
