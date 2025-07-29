@@ -132,7 +132,7 @@ class ChatWindow(QWidget):
         self.menuBar = menubar
 
         self.mode_box = QComboBox()
-        self.mode_box.addItems(["chat", "execute", "command", "script"])
+        self.mode_box.addItems(["chat", "execute", "command", "script", "native"])
 
         self.source_box = QComboBox()
         self.source_box.addItems(["textbox", "llm"])
@@ -291,6 +291,21 @@ class ChatWindow(QWidget):
                     self.append_log(str(result))
                     add_script_history(script, os_type)
                     self.refresh_scripts()
+
+            elif mode == "native":
+                script = create_script(text, os_type, target)
+                self.append_llm_output(script)
+                flow = {
+                    "nodes": [
+                        {"type": "AuroraLLMNode", "prompt": text},
+                        {"type": "AuroraExecNode", "command": script},
+                        {"type": "SymbolicNode", "symbol": "ΞACT"},
+                    ]
+                }
+                path = os.path.join("logs", "last.aurorascript")
+                with open(path, "w") as f:
+                    json.dump(flow, f, indent=2)
+                QMessageBox.information(self, "Flow Saved", f"Flow written to {path}")
 
             else:  # execute plan
                 plan = create_plan(text)
