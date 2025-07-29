@@ -17,6 +17,11 @@ from PyQt5.QtWidgets import (
     QMessageBox,
     QListWidget,
     QLabel,
+    QMenuBar,
+    QAction,
+    QDialog,
+    QFormLayout,
+    QDialogButtonBox,
 )
 from PyQt5.QtCore import Qt
 
@@ -30,6 +35,8 @@ from chat_interface import (
     execute_parsed_command,
     create_script,
     execute_script,
+    load_config,
+    save_config,
 )
 
 SCRIPT_FILE = os.path.join("logs", "scripts.json")
@@ -57,11 +64,58 @@ def add_script_history(script: str, os_type: str) -> None:
     save_script_history(history)
 
 
+class SettingsDialog(QDialog):
+    """Dialog for editing server URLs and tokens."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Network Settings")
+        self.inputs: Dict[str, QLineEdit] = {}
+
+        form = QFormLayout()
+        cfg = load_config()
+        for svc in ["lmstudio", "anythingllm", "n8n", "openai"]:
+            url_key = f"{svc}_url"
+            tok_key = f"{svc}_token"
+            url_edit = QLineEdit(cfg.get(url_key, ""))
+            token_edit = QLineEdit(cfg.get(tok_key, ""))
+            form.addRow(f"{svc} URL", url_edit)
+            form.addRow(f"{svc} Token", token_edit)
+            self.inputs[url_key] = url_edit
+            self.inputs[tok_key] = token_edit
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.Save | QDialogButtonBox.Cancel, parent=self
+        )
+        buttons.accepted.connect(self.save)
+        buttons.rejected.connect(self.reject)
+
+        layout = QVBoxLayout()
+        layout.addLayout(form)
+        layout.addWidget(buttons)
+        self.setLayout(layout)
+
+    def save(self) -> None:
+        for key, edit in self.inputs.items():
+            CONFIG[key] = edit.text().strip()
+        save_config(CONFIG)
+        self.accept()
+
+
 class ChatWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Echo")
         self.resize(800, 600)
+
+        # menu bar with settings dialog
+        menubar = QMenuBar()
+        settings_menu = menubar.addMenu("Settings")
+        net_action = QAction("Network", self)
+        net_action.triggered.connect(self.open_settings)
+        settings_menu.addAction(net_action)
+
+        self.menuBar = menubar
 
         self.mode_box = QComboBox()
         self.mode_box.addItems(["chat", "execute", "command", "script"])
@@ -101,6 +155,7 @@ class ChatWindow(QWidget):
         bottom.addWidget(self.send_btn)
 
         layout = QVBoxLayout()
+        layout.setMenuBar(self.menuBar)
         layout.addLayout(top)
         layout.addWidget(QLabel("Chat Log"))
         layout.addWidget(self.log)
@@ -142,6 +197,13 @@ class ChatWindow(QWidget):
             self.append_log(str(result))
             add_script_history(script, os_type)
             self.refresh_scripts()
+
+    def open_settings(self) -> None:
+        dlg = SettingsDialog(self)
+        dlg.exec_()
+        # reload config to pick up changes
+        global CONFIG
+        CONFIG = load_config()
 
     def handle_send(self):
         text = self.input.text().strip()

@@ -32,6 +32,8 @@ complex workflows can be triggered via N8N.
   Windows.
 - **Desktop GUI enhancements** – the PyQt interface shows raw LLM replies in a
   separate pane and keeps a selectable history of generated scripts.
+- **Configurable network settings** – the standalone PyQt app now includes a
+  drop-down menu to update server URLs and tokens at runtime.
 
 To start the server:
 
