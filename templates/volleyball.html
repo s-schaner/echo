@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Volleyball Stats Tracker</title>
+    <link rel="stylesheet" href="/static/volleyball.css">
+</head>
+<body>
+    <header class="navbar">
+        <div class="nav-links">
+            <a href="/">Chat</a>
+            <a href="/lmchat">LM Chat</a>
+            <a href="/commands">Commands</a>
+            <a href="/system">System Status</a>
+            <a href="/probe">Probe OS</a>
+            <a href="/volleyball" class="active">Volleyball Stats</a>
+        </div>
+        <h1>Volleyball Stats Tracker</h1>
+    </header>
+
+    <main class="page-content">
+        <section class="controls">
+            <label for="player-name">Add Player</label>
+            <div class="control-row">
+                <input type="text" id="player-name" placeholder="Player name">
+                <button type="button" onclick="addPlayer()">Add</button>
+            </div>
+            <p class="hint">Use the dropdown to choose which metric groups are active. Click items to toggle them on or off; only the selected sections are shown.</p>
+            <label for="metric-selector">Active Metrics</label>
+            <select id="metric-selector" multiple>
+                <option value="rotation">Rotation Stats</option>
+                <option value="attacking">Attacking Stats</option>
+                <option value="passing">Passing Stats</option>
+                <option value="setting">Setting Stats</option>
+                <option value="defensive">Defensive Stats</option>
+                <option value="serving">Serving Stats</option>
+            </select>
+        </section>
+
+        <section id="rotation" class="metric-card hidden">
+            <header>
+                <h2>Rotation Stats</h2>
+                <p>Track points scored while serving or receiving for each rotation.</p>
+            </header>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Rotation</th>
+                        <th>Serve Points</th>
+                        <th>Receive Points</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="rotation-body"></tbody>
+            </table>
+        </section>
+
+        <section id="attacking" class="metric-card hidden">
+            <header>
+                <h2>Attacking Stats</h2>
+                <p>Log attempts, kills, and errors for each player. Efficiency is calculated automatically.</p>
+            </header>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Player</th>
+                        <th>Attempts</th>
+                        <th>Kills</th>
+                        <th>Errors</th>
+                        <th>Efficiency</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="attacking-body"></tbody>
+            </table>
+        </section>
+
+        <section id="passing" class="metric-card hidden">
+            <header>
+                <h2>Passing Stats</h2>
+                <p>Use the 0–3 quality scale where 3 is perfect and 0 is an error.</p>
+            </header>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Player</th>
+                        <th>3s</th>
+                        <th>2s</th>
+                        <th>1s</th>
+                        <th>0s</th>
+                        <th>Average</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="passing-body"></tbody>
+            </table>
+        </section>
+
+        <section id="setting" class="metric-card hidden">
+            <header>
+                <h2>Setting Stats</h2>
+                <p>Count assists for any set or pass that leads to a kill.</p>
+            </header>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Player</th>
+                        <th>Assists</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="setting-body"></tbody>
+            </table>
+        </section>
+
+        <section id="defensive" class="metric-card hidden">
+            <header>
+                <h2>Defensive Stats</h2>
+                <p>Track blocks and digs for each player.</p>
+            </header>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Player</th>
+                        <th>Block Attempts</th>
+                        <th>Block Solos</th>
+                        <th>Block Assists</th>
+                        <th>Digs</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="defensive-body"></tbody>
+            </table>
+        </section>
+
+        <section id="serving" class="metric-card hidden">
+            <header>
+                <h2>Serving Stats</h2>
+                <p>Log serving attempts, aces, and errors.</p>
+            </header>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Player</th>
+                        <th>Attempts</th>
+                        <th>Aces</th>
+                        <th>Errors</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="serving-body"></tbody>
+            </table>
+        </section>
+
+        <section class="controls">
+            <button type="button" class="reset" onclick="resetStats()">Reset All Stats</button>
+        </section>
+    </main>
+
+    <template id="rotation-row-template">
+        <tr>
+            <td class="rotation-label"></td>
+            <td class="rotation-serve">0</td>
+            <td class="rotation-receive">0</td>
+            <td>
+                <div class="button-row">
+                    <button type="button" data-action="serve">+ Serve Point</button>
+                    <button type="button" data-action="receive">+ Receive Point</button>
+                </div>
+            </td>
+        </tr>
+    </template>
+
+    <template id="player-row-template">
+        <tr>
+            <td class="player-name"></td>
+            <td class="stat-a"></td>
+            <td class="stat-b"></td>
+            <td class="stat-c"></td>
+            <td class="stat-d"></td>
+            <td class="actions"></td>
+        </tr>
+    </template>
+
+    <script>
+    const players = {};
+    const rotationData = Array.from({ length: 6 }, (_, i) => ({ rotation: i + 1, serve: 0, receive: 0 }));
+
+    const selectors = {
+        rotation: document.getElementById('rotation'),
+        attacking: document.getElementById('attacking'),
+        passing: document.getElementById('passing'),
+        setting: document.getElementById('setting'),
+        defensive: document.getElementById('defensive'),
+        serving: document.getElementById('serving')
+    };
+
+    const metricSelect = document.getElementById('metric-selector');
+    metricSelect.addEventListener('change', updateMetricVisibility);
+    metricSelect.addEventListener('mousedown', (event) => {
+        const option = event.target;
+        if (option.tagName !== 'OPTION') {
+            return;
+        }
+        event.preventDefault();
+        option.selected = !option.selected;
+        updateMetricVisibility();
+    });
+
+    function updateMetricVisibility() {
+        const selected = Array.from(document.getElementById('metric-selector').selectedOptions).map(opt => opt.value);
+        Object.entries(selectors).forEach(([key, section]) => {
+            if (selected.includes(key)) {
+                section.classList.remove('hidden');
+            } else {
+                section.classList.add('hidden');
+            }
+        });
+    }
+
+    function addPlayer() {
+        const input = document.getElementById('player-name');
+        const name = input.value.trim();
+        if (!name || players[name]) {
+            input.value = '';
+            return;
+        }
+        players[name] = {
+            attacking: { attempts: 0, kills: 0, errors: 0 },
+            passing: { 3: 0, 2: 0, 1: 0, 0: 0 },
+            setting: { assists: 0 },
+            defensive: { blockAttempts: 0, blockSolos: 0, blockAssists: 0, digs: 0 },
+            serving: { attempts: 0, aces: 0, errors: 0 }
+        };
+        input.value = '';
+        updateAllTables();
+    }
+
+    function resetStats() {
+        Object.values(players).forEach(player => {
+            player.attacking = { attempts: 0, kills: 0, errors: 0 };
+            player.passing = { 3: 0, 2: 0, 1: 0, 0: 0 };
+            player.setting = { assists: 0 };
+            player.defensive = { blockAttempts: 0, blockSolos: 0, blockAssists: 0, digs: 0 };
+            player.serving = { attempts: 0, aces: 0, errors: 0 };
+        });
+        rotationData.forEach(rot => { rot.serve = 0; rot.receive = 0; });
+        updateAllTables();
+        renderRotationTable();
+    }
+
+    function updateAllTables() {
+        renderAttackingTable();
+        renderPassingTable();
+        renderSettingTable();
+        renderDefensiveTable();
+        renderServingTable();
+    }
+
+    function renderRotationTable() {
+        const body = document.getElementById('rotation-body');
+        const template = document.getElementById('rotation-row-template');
+        body.innerHTML = '';
+        rotationData.forEach(item => {
+            const row = template.content.cloneNode(true);
+            row.querySelector('.rotation-label').textContent = item.rotation;
+            row.querySelector('.rotation-serve').textContent = item.serve;
+            row.querySelector('.rotation-receive').textContent = item.receive;
+            row.querySelectorAll('button').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    if (btn.dataset.action === 'serve') {
+                        item.serve += 1;
+                    } else {
+                        item.receive += 1;
+                    }
+                    renderRotationTable();
+                });
+            });
+            body.appendChild(row);
+        });
+    }
+
+    function renderAttackingTable() {
+        const body = document.getElementById('attacking-body');
+        body.innerHTML = '';
+        Object.entries(players).forEach(([name, data]) => {
+            const row = document.createElement('tr');
+            const eff = data.attacking.attempts
+                ? ((data.attacking.kills - data.attacking.errors) / data.attacking.attempts).toFixed(3)
+                : '0.000';
+            row.innerHTML = `
+                <td>${name}</td>
+                <td>${data.attacking.attempts}</td>
+                <td>${data.attacking.kills}</td>
+                <td>${data.attacking.errors}</td>
+                <td>${eff}</td>
+                <td class="button-row">
+                    <button type="button" data-action="attempt">+ Attempt</button>
+                    <button type="button" data-action="kill">+ Kill</button>
+                    <button type="button" data-action="error">+ Error</button>
+                </td>
+            `;
+            row.querySelectorAll('button').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    if (btn.dataset.action === 'attempt') {
+                        data.attacking.attempts += 1;
+                    }
+                    if (btn.dataset.action === 'kill') {
+                        data.attacking.kills += 1;
+                        data.attacking.attempts += 1;
+                    }
+                    if (btn.dataset.action === 'error') {
+                        data.attacking.errors += 1;
+                        data.attacking.attempts += 1;
+                    }
+                    renderAttackingTable();
+                });
+            });
+            body.appendChild(row);
+        });
+    }
+
+    function renderPassingTable() {
+        const body = document.getElementById('passing-body');
+        body.innerHTML = '';
+        Object.entries(players).forEach(([name, data]) => {
+            const totalPasses = data.passing[3] + data.passing[2] + data.passing[1] + data.passing[0];
+            const weighted = (data.passing[3] * 3) + (data.passing[2] * 2) + (data.passing[1] * 1);
+            const average = totalPasses ? (weighted / totalPasses).toFixed(2) : '0.00';
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${name}</td>
+                <td>${data.passing[3]}</td>
+                <td>${data.passing[2]}</td>
+                <td>${data.passing[1]}</td>
+                <td>${data.passing[0]}</td>
+                <td>${average}</td>
+                <td class="button-row">
+                    <button type="button" data-rating="3">+ 3</button>
+                    <button type="button" data-rating="2">+ 2</button>
+                    <button type="button" data-rating="1">+ 1</button>
+                    <button type="button" data-rating="0">+ 0</button>
+                </td>
+            `;
+            row.querySelectorAll('button').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const rating = btn.dataset.rating;
+                    data.passing[rating] += 1;
+                    renderPassingTable();
+                });
+            });
+            body.appendChild(row);
+        });
+    }
+
+    function renderSettingTable() {
+        const body = document.getElementById('setting-body');
+        body.innerHTML = '';
+        Object.entries(players).forEach(([name, data]) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${name}</td>
+                <td>${data.setting.assists}</td>
+                <td class="button-row">
+                    <button type="button">+ Assist</button>
+                </td>
+            `;
+            row.querySelector('button').addEventListener('click', () => {
+                data.setting.assists += 1;
+                renderSettingTable();
+            });
+            body.appendChild(row);
+        });
+    }
+
+    function renderDefensiveTable() {
+        const body = document.getElementById('defensive-body');
+        body.innerHTML = '';
+        Object.entries(players).forEach(([name, data]) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${name}</td>
+                <td>${data.defensive.blockAttempts}</td>
+                <td>${data.defensive.blockSolos}</td>
+                <td>${data.defensive.blockAssists}</td>
+                <td>${data.defensive.digs}</td>
+                <td class="button-row">
+                    <button type="button" data-action="blockAttempts">+ Block Attempt</button>
+                    <button type="button" data-action="blockSolos">+ Block Solo</button>
+                    <button type="button" data-action="blockAssists">+ Block Assist</button>
+                    <button type="button" data-action="digs">+ Dig</button>
+                </td>
+            `;
+            row.querySelectorAll('button').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const action = btn.dataset.action;
+                    data.defensive[action] += 1;
+                    if (action === 'blockSolos' || action === 'blockAssists') {
+                        data.defensive.blockAttempts += 1;
+                    }
+                    renderDefensiveTable();
+                });
+            });
+            body.appendChild(row);
+        });
+    }
+
+    function renderServingTable() {
+        const body = document.getElementById('serving-body');
+        body.innerHTML = '';
+        Object.entries(players).forEach(([name, data]) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${name}</td>
+                <td>${data.serving.attempts}</td>
+                <td>${data.serving.aces}</td>
+                <td>${data.serving.errors}</td>
+                <td class="button-row">
+                    <button type="button" data-action="attempt">+ Attempt</button>
+                    <button type="button" data-action="ace">+ Ace</button>
+                    <button type="button" data-action="error">+ Error</button>
+                </td>
+            `;
+            row.querySelectorAll('button').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    if (btn.dataset.action === 'attempt') {
+                        data.serving.attempts += 1;
+                    }
+                    if (btn.dataset.action === 'ace') {
+                        data.serving.aces += 1;
+                        data.serving.attempts += 1;
+                    }
+                    if (btn.dataset.action === 'error') {
+                        data.serving.errors += 1;
+                        data.serving.attempts += 1;
+                    }
+                    renderServingTable();
+                });
+            });
+            body.appendChild(row);
+        });
+    }
+
+    renderRotationTable();
+    updateAllTables();
+    updateMetricVisibility();
+    </script>
+</body>
+</html>

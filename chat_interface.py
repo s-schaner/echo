@@ -391,6 +391,12 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/volleyball")
+def volleyball_page():
+    """Serve the volleyball stats tracker UI."""
+    return render_template("volleyball.html")
+
+
 @app.route("/system")
 def system_page():
     """Serve system status page."""
