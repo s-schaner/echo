@@ -1,5 +1,0 @@
-__pycache__/
-*.pyc
-node_modules/
-electron_app/node_modules/
-*.aurorascript
