@@ -1,4 +1,0 @@
-flask
-requests
-pyyaml
-PyQt5
